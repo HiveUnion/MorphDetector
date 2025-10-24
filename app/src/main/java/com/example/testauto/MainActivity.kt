@@ -7,6 +7,9 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.util.Log
 import android.view.InputDevice
@@ -27,6 +30,7 @@ data class ListItem(
 
 enum class ItemType {
     ACCESSIBILITY_SERVICE,  // 无障碍服务
+    VPN_STATUS,            // VPN状态
     APP_LIST               // 应用列表
 }
 
@@ -72,6 +76,14 @@ class MainActivity : ComponentActivity() {
         findViewById<android.widget.Button>(R.id.btnOpenAccessibilitySettings).setOnClickListener {
             openAccessibilitySettings()
         }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshVpn).setOnClickListener {
+            refreshVpnStatus()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnOpenVpnSettings).setOnClickListener {
+            openVpnSettings()
+        }
     }
 
     private fun openAccessibilitySettings() {
@@ -83,10 +95,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openVpnSettings() {
+        try {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "无法打开VPN设置: ${e.message}")
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // 刷新无障碍服务信息
         refreshAccessibilityServices()
+        // 刷新VPN状态
+        refreshVpnStatus()
     }
 
     /**
@@ -201,14 +224,14 @@ class MainActivity : ComponentActivity() {
         // 获取服务的事件类型
         val eventTypes = serviceInfo.eventTypes
         val eventTypeNames = when (eventTypes) {
-            AccessibilityServiceInfo.TYPE_ALL_MASK -> "所有事件"
-            AccessibilityServiceInfo.TYPE_VIEW_CLICKED -> "点击事件"
-            AccessibilityServiceInfo.TYPE_VIEW_LONG_CLICKED -> "长按事件"
-            AccessibilityServiceInfo.TYPE_VIEW_SELECTED -> "选择事件"
-            AccessibilityServiceInfo.TYPE_VIEW_FOCUSED -> "焦点事件"
-            AccessibilityServiceInfo.TYPE_VIEW_TEXT_CHANGED -> "文本变化事件"
-            AccessibilityServiceInfo.TYPE_WINDOW_STATE_CHANGED -> "窗口状态变化"
-            AccessibilityServiceInfo.TYPE_NOTIFICATION_STATE_CHANGED -> "通知状态变化"
+//            AccessibilityServiceInfo.TYPE_ALL_MASK -> "所有事件"
+//            AccessibilityServiceInfo.TYPE_VIEW_CLICKED -> "点击事件"
+//            AccessibilityServiceInfo.TYPE_VIEW_LONG_CLICKED -> "长按事件"
+//            AccessibilityServiceInfo.TYPE_VIEW_SELECTED -> "选择事件"
+//            AccessibilityServiceInfo.TYPE_VIEW_FOCUSED -> "焦点事件"
+//            AccessibilityServiceInfo.TYPE_VIEW_TEXT_CHANGED -> "文本变化事件"
+//            AccessibilityServiceInfo.TYPE_WINDOW_STATE_CHANGED -> "窗口状态变化"
+//            AccessibilityServiceInfo.TYPE_NOTIFICATION_STATE_CHANGED -> "通知状态变化"
             else -> "自定义事件类型: $eventTypes"
         }
         
@@ -290,32 +313,39 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 加载初始数据，包括无障碍服务信息
+     * 加载初始数据，包括无障碍服务信息和VPN状态
      */
     private fun loadInitialData() {
         // 首先添加统计信息
         val stats = getAccessibilityServiceStats()
         dataList.add(stats)
         dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE)) // 空行分隔
-        
+
         // 添加特定服务检测（如 AutoJs 相关服务）
         val specificServices = detectSpecificAccessibilityServices()
         if (specificServices.isNotEmpty()) {
             dataList.addAll(specificServices)
             dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE)) // 空行分隔
         }
-        
+
         // 添加所有无障碍服务信息
         val accessibilityServices = getAccessibilityServices()
         dataList.addAll(accessibilityServices)
-        
+
+        // 添加空行分隔
+        dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE))
+
+        // 添加VPN状态
+        val vpnStatus = checkVpnStatus()
+        dataList.addAll(vpnStatus)
+
         // 添加分隔符
         dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-        
+
         // 获取并添加真实的应用列表
         val apps = getAppListForDisplay()
         dataList.addAll(apps)
-        
+
         adapter.notifyDataSetChanged()
     }
 
@@ -359,11 +389,122 @@ class MainActivity : ComponentActivity() {
     private fun refreshAccessibilityServices() {
         // 清除现有的无障碍服务项
         dataList.removeAll { it.type == ItemType.ACCESSIBILITY_SERVICE }
-        
+
         // 在开头重新添加无障碍服务信息
         val accessibilityServices = getAccessibilityServices()
         dataList.addAll(0, accessibilityServices)
-        
+
+        adapter.notifyDataSetChanged()
+    }
+
+    /**
+     * 检查VPN状态
+     */
+    private fun checkVpnStatus(): List<ListItem> {
+        val vpnItems = ArrayList<ListItem>()
+
+        try {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+            // 获取所有网络连接
+            val networks = connectivityManager.allNetworks
+            var vpnConnected = false
+            val vpnNetworks = ArrayList<String>()
+
+            for (network in networks) {
+                val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
+
+                if (networkCapabilities != null) {
+                    // 检查是否是VPN连接
+                    if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                        vpnConnected = true
+
+                        // 获取VPN的详细信息
+                        val networkInfo = StringBuilder()
+                        networkInfo.append("VPN网络: $network\n")
+
+                        // 检查VPN是否已验证
+                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                            networkInfo.append("状态: 已验证\n")
+                        } else {
+                            networkInfo.append("状态: 未验证\n")
+                        }
+
+                        // 检查是否有互联网访问
+                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                            networkInfo.append("互联网: 可用\n")
+                        } else {
+                            networkInfo.append("互联网: 不可用\n")
+                        }
+
+                        // 检查其他传输类型
+                        val transports = mutableListOf<String>()
+                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                            transports.add("WiFi")
+                        }
+                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                            transports.add("移动数据")
+                        }
+                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                            transports.add("以太网")
+                        }
+
+                        if (transports.isNotEmpty()) {
+                            networkInfo.append("底层传输: ${transports.joinToString(", ")}")
+                        }
+
+                        vpnNetworks.add(networkInfo.toString())
+                    }
+                }
+            }
+
+            if (vpnConnected) {
+                vpnItems.add(ListItem("=== VPN状态: 已连接 ===", ItemType.VPN_STATUS))
+                vpnItems.add(ListItem("检测到 ${vpnNetworks.size} 个VPN连接", ItemType.VPN_STATUS))
+                vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行
+
+                for (vpnInfo in vpnNetworks) {
+                    vpnItems.add(ListItem(vpnInfo, ItemType.VPN_STATUS))
+                    vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行分隔
+                }
+            } else {
+                vpnItems.add(ListItem("=== VPN状态: 未连接 ===", ItemType.VPN_STATUS))
+                vpnItems.add(ListItem("当前没有检测到VPN连接", ItemType.VPN_STATUS))
+            }
+
+            // 添加网络统计信息
+            vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行
+            vpnItems.add(ListItem("网络统计:\n总网络数: ${networks.size}\nVPN连接数: ${vpnNetworks.size}", ItemType.VPN_STATUS))
+
+        } catch (e: Exception) {
+            vpnItems.add(ListItem("VPN状态检测失败: ${e.message}", ItemType.VPN_STATUS))
+            Log.e("MainActivity", "检测VPN状态失败", e)
+        }
+
+        return vpnItems
+    }
+
+    /**
+     * 刷新VPN状态
+     */
+    private fun refreshVpnStatus() {
+        // 清除现有的VPN状态项
+        dataList.removeAll { it.type == ItemType.VPN_STATUS }
+
+        // 获取VPN状态
+        val vpnStatus = checkVpnStatus()
+
+        // 找到无障碍服务项的结束位置
+        val lastAccessibilityIndex = dataList.indexOfLast { it.type == ItemType.ACCESSIBILITY_SERVICE }
+
+        if (lastAccessibilityIndex >= 0) {
+            // 在无障碍服务后面添加VPN状态
+            dataList.addAll(lastAccessibilityIndex + 1, vpnStatus)
+        } else {
+            // 如果没有无障碍服务项，则添加到开头
+            dataList.addAll(0, vpnStatus)
+        }
+
         adapter.notifyDataSetChanged()
     }
 
@@ -558,6 +699,8 @@ class MainActivity : ComponentActivity() {
 
             // 获取第一个触摸点的工具类型
             val toolType = ev.getToolType(0)
+
+            Log.d("dispatchTouchEvent Pressure", "First Pressure" + ev.pressure)
             Log.d("dispatchTouchEvent ToolType", "First ToolType source is " + toolType)
             // 根据工具类型进行判断
             when (toolType) {
