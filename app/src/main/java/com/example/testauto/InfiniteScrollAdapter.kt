@@ -10,9 +10,19 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
-        private const val VIEW_TYPE_ACCESSIBILITY = 0
-        private const val VIEW_TYPE_APP_LIST = 1
-        private const val VIEW_TYPE_VPN_STATUS = 2
+        private const val VIEW_TYPE_BOOT_ID = 0
+        private const val VIEW_TYPE_DEVICE_ID = 1
+        private const val VIEW_TYPE_ACCESSIBILITY = 2
+        private const val VIEW_TYPE_APP_LIST = 3
+        private const val VIEW_TYPE_VPN_STATUS = 4
+    }
+
+    class BootIdViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val textView: TextView = itemView.findViewById(android.R.id.text1)
+    }
+
+    class DeviceIdViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val textView: TextView = itemView.findViewById(android.R.id.text1)
     }
 
     class AccessibilityViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -31,6 +41,8 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
 
     override fun getItemViewType(position: Int): Int {
         return when (dataList[position].type) {
+            ItemType.BOOT_ID -> VIEW_TYPE_BOOT_ID
+            ItemType.DEVICE_ID -> VIEW_TYPE_DEVICE_ID
             ItemType.ACCESSIBILITY_SERVICE -> VIEW_TYPE_ACCESSIBILITY
             ItemType.VPN_STATUS -> VIEW_TYPE_VPN_STATUS
             ItemType.APP_LIST -> VIEW_TYPE_APP_LIST
@@ -39,6 +51,16 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
+            VIEW_TYPE_BOOT_ID -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(android.R.layout.simple_list_item_1, parent, false)
+                BootIdViewHolder(view)
+            }
+            VIEW_TYPE_DEVICE_ID -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(android.R.layout.simple_list_item_1, parent, false)
+                DeviceIdViewHolder(view)
+            }
             VIEW_TYPE_ACCESSIBILITY -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_accessibility_service, parent, false)
@@ -62,6 +84,28 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
         val item = dataList[position]
 
         when (holder) {
+            is BootIdViewHolder -> {
+                holder.textView.text = item.text
+                // 设置 Boot ID 的样式
+                holder.textView.textSize = 14f
+                holder.textView.setPadding(32, 16, 32, 16)
+                holder.textView.setTextColor(0xFF1976D2.toInt()) // 蓝色
+            }
+            is DeviceIdViewHolder -> {
+                holder.textView.text = item.text
+                // 设置设备标识符的样式
+                if (item.text.startsWith("===")) {
+                    // 标题项
+                    holder.textView.textSize = 16f
+                    holder.textView.setPadding(32, 16, 32, 8)
+                    holder.textView.setTextColor(0xFF9C27B0.toInt()) // 紫色
+                } else {
+                    // 内容项
+                    holder.textView.textSize = 14f
+                    holder.textView.setPadding(48, 8, 32, 8)
+                    holder.textView.setTextColor(0xFF000000.toInt()) // 黑色
+                }
+            }
             is AccessibilityViewHolder -> {
                 if (item.text.startsWith("===")) {
                     // 标题项

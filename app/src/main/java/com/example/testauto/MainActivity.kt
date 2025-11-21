@@ -7,10 +7,15 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -29,6 +34,8 @@ data class ListItem(
 )
 
 enum class ItemType {
+    BOOT_ID,               // Boot ID
+    DEVICE_ID,             // 设备标识符 (AndroidId, OAId, IMEI, Serial)
     ACCESSIBILITY_SERVICE,  // 无障碍服务
     VPN_STATUS,            // VPN状态
     APP_LIST               // 应用列表
@@ -42,6 +49,10 @@ class MainActivity : ComponentActivity() {
     private var dataList = ArrayList<ListItem>()
     private var isLoading = false
     private val visibleThreshold = 5
+    
+    companion object {
+        private const val PERMISSION_REQUEST_CODE_READ_PHONE_STATE = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,9 +77,79 @@ class MainActivity : ComponentActivity() {
 
         // 检测 AutoJs 操作
         detectAutoJsOperation()
+        
+        // 检查并请求权限
+        checkAndRequestPhoneStatePermission()
+    }
+
+    /**
+     * 检查 READ_PHONE_STATE 权限
+     */
+    private fun hasPhoneStatePermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * 检查并请求 READ_PHONE_STATE 权限
+     */
+    private fun checkAndRequestPhoneStatePermission() {
+        if (!hasPhoneStatePermission()) {
+            // 如果权限未授予，请求权限
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.READ_PHONE_STATE),
+                PERMISSION_REQUEST_CODE_READ_PHONE_STATE
+            )
+        } else {
+            // 权限已授予，刷新设备标识符
+            refreshDeviceIds()
+        }
+    }
+
+    /**
+     * 处理权限请求结果
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        when (requestCode) {
+            PERMISSION_REQUEST_CODE_READ_PHONE_STATE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // 权限已授予
+                    Log.d("MainActivity", "READ_PHONE_STATE 权限已授予")
+                    // 刷新设备标识符以显示 IMEI 和 Serial
+                    refreshDeviceIds()
+                } else {
+                    // 权限被拒绝
+                    Log.d("MainActivity", "READ_PHONE_STATE 权限被拒绝")
+                    // 仍然刷新设备标识符，但会显示权限不足
+                    refreshDeviceIds()
+                }
+            }
+        }
     }
 
     private fun setupButtons() {
+        findViewById<android.widget.Button>(R.id.btnRefreshBootId).setOnClickListener {
+            refreshBootId()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshDrmId).setOnClickListener {
+            if (hasPhoneStatePermission()) {
+                refreshDeviceIds()
+            } else {
+                // 如果权限未授予，先请求权限
+                checkAndRequestPhoneStatePermission()
+            }
+        }
+
         findViewById<android.widget.Button>(R.id.btnRefreshAccessibility).setOnClickListener {
             refreshAccessibilityServices()
         }
@@ -106,6 +187,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 刷新 Boot ID
+        refreshBootId()
+        // 刷新设备标识符
+        refreshDeviceIds()
         // 刷新无障碍服务信息
         refreshAccessibilityServices()
         // 刷新VPN状态
@@ -313,10 +398,179 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 获取 Boot ID
+     */
+    private fun getBootId(): ListItem {
+        return try {
+            val bootIdFile = java.io.File("/proc/sys/kernel/random/boot_id")
+            val bootId = if (bootIdFile.exists()) {
+                bootIdFile.readText().trim()
+            } else {
+                "无法读取 Boot ID"
+            }
+            
+            val bootIdText = "=== Boot ID ===\n$bootId"
+            ListItem(bootIdText, ItemType.BOOT_ID)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "读取 Boot ID 失败", e)
+            ListItem("=== Boot ID ===\n读取失败: ${e.message}", ItemType.BOOT_ID)
+        }
+    }
+
+    /**
+     * 刷新 Boot ID
+     */
+    private fun refreshBootId() {
+        // 清除现有的 Boot ID 项
+        dataList.removeAll { it.type == ItemType.BOOT_ID }
+        
+        // 在最前面添加 Boot ID
+        val bootId = getBootId()
+        dataList.add(0, bootId)
+        dataList.add(1, ListItem("", ItemType.BOOT_ID)) // 空行分隔
+        
+        adapter.notifyDataSetChanged()
+    }
+
+    /**
+     * 获取设备标识符 (AndroidId, OAId, IMEI, Serial)
+     */
+    private fun getDeviceIds(): List<ListItem> {
+        val deviceIdItems = ArrayList<ListItem>()
+        
+        try {
+            deviceIdItems.add(ListItem("=== 设备标识符 ===", ItemType.DEVICE_ID))
+            
+            // 1. AndroidId
+            try {
+                val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                val androidIdText = if (androidId != null && androidId.isNotEmpty()) {
+                    "AndroidId: $androidId"
+                } else {
+                    "AndroidId: 无法获取"
+                }
+                deviceIdItems.add(ListItem(androidIdText, ItemType.DEVICE_ID))
+            } catch (e: Exception) {
+                Log.e("MainActivity", "读取 AndroidId 失败", e)
+                deviceIdItems.add(ListItem("AndroidId: 读取失败 - ${e.message}", ItemType.DEVICE_ID))
+            }
+            
+            // 2. OAId (需要 MSASDK，这里先尝试获取，如果没有则显示未获取)
+            try {
+                // OAId 通常需要通过 MSASDK 获取，这里先显示提示
+                deviceIdItems.add(ListItem("OAId: 需要通过 MSASDK 获取", ItemType.DEVICE_ID))
+            } catch (e: Exception) {
+                Log.e("MainActivity", "读取 OAId 失败", e)
+                deviceIdItems.add(ListItem("OAId: 读取失败 - ${e.message}", ItemType.DEVICE_ID))
+            }
+            
+            // 3. IMEI
+            if (hasPhoneStatePermission()) {
+                try {
+                    val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                    val imei = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        telephonyManager.imei
+                    } else {
+                        @Suppress("DEPRECATION")
+                        telephonyManager.deviceId
+                    }
+                    val imeiText = if (imei != null && imei.isNotEmpty()) {
+                        "IMEI: $imei"
+                    } else {
+                        "IMEI: 无法获取"
+                    }
+                    deviceIdItems.add(ListItem(imeiText, ItemType.DEVICE_ID))
+                } catch (e: SecurityException) {
+                    Log.e("MainActivity", "读取 IMEI 权限不足", e)
+                    deviceIdItems.add(ListItem("IMEI: 权限不足", ItemType.DEVICE_ID))
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "读取 IMEI 失败", e)
+                    deviceIdItems.add(ListItem("IMEI: 读取失败 - ${e.message}", ItemType.DEVICE_ID))
+                }
+            } else {
+                deviceIdItems.add(ListItem("IMEI: 需要 READ_PHONE_STATE 权限", ItemType.DEVICE_ID))
+            }
+            
+            // 4. Serial
+            if (hasPhoneStatePermission()) {
+                try {
+                    val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Build.getSerial()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Build.SERIAL
+                    }
+                    val serialText = if (serial != null && serial.isNotEmpty() && serial != "unknown") {
+                        "Serial: $serial"
+                    } else {
+                        "Serial: 无法获取"
+                    }
+                    deviceIdItems.add(ListItem(serialText, ItemType.DEVICE_ID))
+                } catch (e: SecurityException) {
+                    Log.e("MainActivity", "读取 Serial 权限不足", e)
+                    deviceIdItems.add(ListItem("Serial: 权限不足", ItemType.DEVICE_ID))
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "读取 Serial 失败", e)
+                    deviceIdItems.add(ListItem("Serial: 读取失败 - ${e.message}", ItemType.DEVICE_ID))
+                }
+            } else {
+                deviceIdItems.add(ListItem("Serial: 需要 READ_PHONE_STATE 权限", ItemType.DEVICE_ID))
+            }
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取设备标识符失败", e)
+            deviceIdItems.add(ListItem("获取设备标识符失败: ${e.message}", ItemType.DEVICE_ID))
+        }
+        
+        return deviceIdItems
+    }
+
+    /**
+     * 刷新设备标识符
+     */
+    private fun refreshDeviceIds() {
+        // 清除现有的设备标识符项
+        dataList.removeAll { it.type == ItemType.DEVICE_ID }
+        
+        // 找到 Boot ID 项的结束位置
+        val lastBootIdIndex = dataList.indexOfLast { it.type == ItemType.BOOT_ID }
+        
+        if (lastBootIdIndex >= 0) {
+            // 在 Boot ID 后面添加设备标识符
+            val deviceIds = getDeviceIds()
+            var insertIndex = lastBootIdIndex + 1
+            for (item in deviceIds) {
+                dataList.add(insertIndex++, item)
+            }
+            dataList.add(insertIndex, ListItem("", ItemType.DEVICE_ID)) // 空行分隔
+        } else {
+            // 如果没有 Boot ID 项，则添加到开头
+            val deviceIds = getDeviceIds()
+            var insertIndex = 0
+            for (item in deviceIds) {
+                dataList.add(insertIndex++, item)
+            }
+            dataList.add(insertIndex, ListItem("", ItemType.DEVICE_ID)) // 空行分隔
+        }
+        
+        adapter.notifyDataSetChanged()
+    }
+
+    /**
      * 加载初始数据，包括无障碍服务信息和VPN状态
      */
     private fun loadInitialData() {
-        // 首先添加统计信息
+        // 首先添加 Boot ID（最前面）
+        val bootId = getBootId()
+        dataList.add(bootId)
+        dataList.add(ListItem("", ItemType.BOOT_ID)) // 空行分隔
+        
+        // 添加设备标识符
+        val deviceIds = getDeviceIds()
+        dataList.addAll(deviceIds)
+        dataList.add(ListItem("", ItemType.DEVICE_ID)) // 空行分隔
+        
+        // 然后添加统计信息
         val stats = getAccessibilityServiceStats()
         dataList.add(stats)
         dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE)) // 空行分隔
