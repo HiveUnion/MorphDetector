@@ -25,6 +25,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.util.*
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 
 // 数据类用于存储列表项
@@ -38,6 +40,7 @@ enum class ItemType {
     DEVICE_ID,             // 设备标识符 (AndroidId, OAId, IMEI, Serial)
     ACCESSIBILITY_SERVICE,  // 无障碍服务
     VPN_STATUS,            // VPN状态
+    LOCK_SCREEN,           // 锁屏解锁方式状态
     APP_LIST               // 应用列表
 }
 
@@ -46,6 +49,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: InfiniteScrollAdapter
+    private lateinit var tvImei: android.widget.TextView
+    private lateinit var tvBootId: android.widget.TextView
+    private lateinit var tvDeviceIds: android.widget.TextView
+    private lateinit var tvAccessibilityServices: android.widget.TextView
+    private lateinit var tvVpnStatus: android.widget.TextView
+    private lateinit var tvLockScreenStatus: android.widget.TextView
     private var dataList = ArrayList<ListItem>()
     private var isLoading = false
     private val visibleThreshold = 5
@@ -68,6 +77,14 @@ class MainActivity : ComponentActivity() {
 
         // 初始化 RecyclerView
         setupRecyclerView()
+
+        // 初始化所有 TextView
+        tvImei = findViewById(R.id.tvImei)
+        tvBootId = findViewById(R.id.tvBootId)
+        tvDeviceIds = findViewById(R.id.tvDeviceIds)
+        tvAccessibilityServices = findViewById(R.id.tvAccessibilityServices)
+        tvVpnStatus = findViewById(R.id.tvVpnStatus)
+        tvLockScreenStatus = findViewById(R.id.tvLockScreenStatus)
 
         // 设置按钮点击事件
         setupButtons()
@@ -126,11 +143,15 @@ class MainActivity : ComponentActivity() {
                     Log.d("MainActivity", "READ_PHONE_STATE 权限已授予")
                     // 刷新设备标识符以显示 IMEI 和 Serial
                     refreshDeviceIds()
+                    // 刷新IMEI显示
+                    getAndDisplayImei()
                 } else {
                     // 权限被拒绝
                     Log.d("MainActivity", "READ_PHONE_STATE 权限被拒绝")
                     // 仍然刷新设备标识符，但会显示权限不足
                     refreshDeviceIds()
+                    // 更新IMEI显示为权限不足
+                    tvImei.text = "权限被拒绝，无法获取IMEI\n请授予 READ_PHONE_STATE 权限"
                 }
             }
         }
@@ -165,6 +186,14 @@ class MainActivity : ComponentActivity() {
         findViewById<android.widget.Button>(R.id.btnOpenVpnSettings).setOnClickListener {
             openVpnSettings()
         }
+
+        findViewById<android.widget.Button>(R.id.btnGetImei).setOnClickListener {
+            getAndDisplayImei()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshLockScreen).setOnClickListener {
+            refreshLockScreenStatus()
+        }
     }
 
     private fun openAccessibilitySettings() {
@@ -187,14 +216,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 刷新 Boot ID
+        // 刷新所有信息显示
         refreshBootId()
-        // 刷新设备标识符
         refreshDeviceIds()
-        // 刷新无障碍服务信息
         refreshAccessibilityServices()
-        // 刷新VPN状态
         refreshVpnStatus()
+        refreshLockScreenStatus()
+        getAndDisplayImei()
     }
 
     /**
@@ -421,15 +449,18 @@ class MainActivity : ComponentActivity() {
      * 刷新 Boot ID
      */
     private fun refreshBootId() {
-        // 清除现有的 Boot ID 项
-        dataList.removeAll { it.type == ItemType.BOOT_ID }
-        
-        // 在最前面添加 Boot ID
-        val bootId = getBootId()
-        dataList.add(0, bootId)
-        dataList.add(1, ListItem("", ItemType.BOOT_ID)) // 空行分隔
-        
-        adapter.notifyDataSetChanged()
+        try {
+            val bootIdFile = java.io.File("/proc/sys/kernel/random/boot_id")
+            val bootId = if (bootIdFile.exists()) {
+                bootIdFile.readText().trim()
+            } else {
+                "无法读取 Boot ID"
+            }
+            tvBootId.text = bootId
+        } catch (e: Exception) {
+            Log.e("MainActivity", "读取 Boot ID 失败", e)
+            tvBootId.text = "读取失败: ${e.message}"
+        }
     }
 
     /**
@@ -529,77 +560,406 @@ class MainActivity : ComponentActivity() {
      * 刷新设备标识符
      */
     private fun refreshDeviceIds() {
-        // 清除现有的设备标识符项
-        dataList.removeAll { it.type == ItemType.DEVICE_ID }
+        val deviceInfo = StringBuilder()
         
-        // 找到 Boot ID 项的结束位置
-        val lastBootIdIndex = dataList.indexOfLast { it.type == ItemType.BOOT_ID }
-        
-        if (lastBootIdIndex >= 0) {
-            // 在 Boot ID 后面添加设备标识符
-            val deviceIds = getDeviceIds()
-            var insertIndex = lastBootIdIndex + 1
-            for (item in deviceIds) {
-                dataList.add(insertIndex++, item)
+        try {
+            // 1. AndroidId
+            try {
+                val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                if (androidId != null && androidId.isNotEmpty()) {
+                    deviceInfo.append("AndroidId: $androidId\n")
+                } else {
+                    deviceInfo.append("AndroidId: 无法获取\n")
+                }
+            } catch (e: Exception) {
+                deviceInfo.append("AndroidId: 读取失败 - ${e.message}\n")
             }
-            dataList.add(insertIndex, ListItem("", ItemType.DEVICE_ID)) // 空行分隔
-        } else {
-            // 如果没有 Boot ID 项，则添加到开头
-            val deviceIds = getDeviceIds()
-            var insertIndex = 0
-            for (item in deviceIds) {
-                dataList.add(insertIndex++, item)
+            
+            // 2. IMEI
+            if (hasPhoneStatePermission()) {
+                try {
+                    val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                    val imei = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        telephonyManager.imei
+                    } else {
+                        @Suppress("DEPRECATION")
+                        telephonyManager.deviceId
+                    }
+                    if (imei != null && imei.isNotEmpty()) {
+                        deviceInfo.append("IMEI: $imei\n")
+                    } else {
+                        deviceInfo.append("IMEI: 无法获取\n")
+                    }
+                } catch (e: SecurityException) {
+                    deviceInfo.append("IMEI: 权限不足\n")
+                } catch (e: Exception) {
+                    deviceInfo.append("IMEI: 读取失败 - ${e.message}\n")
+                }
+            } else {
+                deviceInfo.append("IMEI: 需要 READ_PHONE_STATE 权限\n")
             }
-            dataList.add(insertIndex, ListItem("", ItemType.DEVICE_ID)) // 空行分隔
+            
+            // 3. Serial
+            if (hasPhoneStatePermission()) {
+                try {
+                    val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Build.getSerial()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Build.SERIAL
+                    }
+                    if (serial != null && serial.isNotEmpty() && serial != "unknown") {
+                        deviceInfo.append("Serial: $serial\n")
+                    } else {
+                        deviceInfo.append("Serial: 无法获取\n")
+                    }
+                } catch (e: SecurityException) {
+                    deviceInfo.append("Serial: 权限不足\n")
+                } catch (e: Exception) {
+                    deviceInfo.append("Serial: 读取失败 - ${e.message}\n")
+                }
+            } else {
+                deviceInfo.append("Serial: 需要 READ_PHONE_STATE 权限\n")
+            }
+            
+        } catch (e: Exception) {
+            deviceInfo.append("获取设备标识符失败: ${e.message}")
         }
         
-        adapter.notifyDataSetChanged()
+        tvDeviceIds.text = deviceInfo.toString().trim()
     }
 
     /**
-     * 加载初始数据，包括无障碍服务信息和VPN状态
+     * 通过反射调用SystemProperties获取系统属性
      */
-    private fun loadInitialData() {
-        // 首先添加 Boot ID（最前面）
-        val bootId = getBootId()
-        dataList.add(bootId)
-        dataList.add(ListItem("", ItemType.BOOT_ID)) // 空行分隔
-        
-        // 添加设备标识符
-        val deviceIds = getDeviceIds()
-        dataList.addAll(deviceIds)
-        dataList.add(ListItem("", ItemType.DEVICE_ID)) // 空行分隔
-        
-        // 然后添加统计信息
-        val stats = getAccessibilityServiceStats()
-        dataList.add(stats)
-        dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE)) // 空行分隔
+    private fun getSystemProperty(key: String, defaultValue: String = ""): String {
+        return try {
+            val systemPropertiesClass = Class.forName("android.os.SystemProperties")
+            val getMethod = systemPropertiesClass.getMethod("get", String::class.java, String::class.java)
+            getMethod.invoke(null, key, defaultValue) as String
+        } catch (e: Exception) {
+            Log.d("MainActivity", "无法通过反射获取系统属性 $key: ${e.message}")
+            ""
+        }
+    }
 
-        // 添加特定服务检测（如 AutoJs 相关服务）
-        val specificServices = detectSpecificAccessibilityServices()
-        if (specificServices.isNotEmpty()) {
-            dataList.addAll(specificServices)
-            dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE)) // 空行分隔
+    /**
+     * 通过getprop命令获取系统属性
+     */
+    private fun getSystemPropertyViaGetprop(key: String): String {
+        return try {
+            val process = Runtime.getRuntime().exec("getprop $key")
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val result = reader.readLine() ?: ""
+            reader.close()
+            process.destroy()
+            result.trim()
+        } catch (e: Exception) {
+            Log.d("MainActivity", "无法通过getprop获取属性 $key: ${e.message}")
+            ""
+        }
+    }
+
+    /**
+     * 按slot获取IMEI（基于系统属性）
+     * @param slot 0表示第一张SIM卡，1表示第二张SIM卡
+     * @return IMEI字符串，如果获取失败返回空字符串
+     */
+    private fun getImeiBySlot(slot: Int): String {
+        return try {
+            // 构造主属性名和备选属性列表
+            val propKey = when (slot) {
+                1 -> "ro.ril.oem.imei2"
+                else -> "ro.ril.oem.imei"
+            }
+
+            val alternativeProps = when (slot) {
+                1 -> listOf(
+                    "ro.vendor.oem.imei2",
+                    "ro.vendor.oem.imei.2",
+                    "ro.ril.oem.imei2",
+                    "ro.ril.oem.imei.2",
+                    "ril.imei1",
+                    "gsm.imei1"
+                )
+                else -> listOf(
+                    "ro.vendor.oem.imei",
+                    "ro.vendor.oem.imei1",
+                    "ro.vendor.oem.imei.1",
+                    "ro.ril.oem.imei1",
+                    "ro.ril.oem.imei",
+                    "ril.imei0",
+                    "gsm.imei0"
+                )
+            }
+
+            // 先尝试通过反射获取主属性
+            var imei = getSystemProperty(propKey)
+            
+            if (imei.isEmpty()) {
+                Log.d("MainActivity", "反射获取IMEI(slot=$slot)失败，尝试getprop命令")
+                // 尝试通过getprop命令获取主属性
+                imei = getSystemPropertyViaGetprop(propKey)
+            }
+
+            // 如果主属性获取失败，尝试备选属性
+            if (imei.isEmpty()) {
+                Log.d("MainActivity", "主属性获取失败，尝试备选属性")
+                for (prop in alternativeProps) {
+                    imei = getSystemProperty(prop)
+                    if (imei.isEmpty()) {
+                        imei = getSystemPropertyViaGetprop(prop)
+                    }
+                    if (imei.isNotEmpty() && imei != "unknown" && imei != "null") {
+                        Log.d("MainActivity", "通过备选属性 $prop 获取IMEI(slot=$slot) 成功: $imei")
+                        break
+                    }
+                }
+            } else {
+                Log.d("MainActivity", "通过主属性获取IMEI(slot=$slot) 成功: $imei")
+            }
+
+            Log.d("MainActivity", "最终IMEI(slot=$slot)获取结果: $imei")
+            imei
+
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取IMEI(slot=$slot)失败: ${e.message}")
+            ""
+        }
+    }
+
+    /**
+     * 从系统属性中获取IMEI相关信息
+     */
+    private fun getImeiFromSystemProperties(): StringBuilder {
+        val propertiesInfo = StringBuilder()
+        propertiesInfo.append("=== 从系统属性获取 ===\n")
+        
+        // 常见的IMEI相关系统属性键
+        val imeiPropertyKeys = listOf(
+            "ro.telephony.imei",
+            "ro.ril.oem.imei",
+            "ro.vendor.oem.imei",
+            "ril.IMEI",
+            "ril.imei",
+            "gsm.imei",
+            "ro.ril.imei",
+            "persist.radio.imei",
+            "ro.serialno",
+            "ro.boot.serialno",
+            "ril.serialnumber"
+        )
+        
+        var foundAny = false
+        for (key in imeiPropertyKeys) {
+            // 先尝试通过反射获取
+            var value = getSystemProperty(key)
+            if (value.isEmpty()) {
+                // 如果反射失败，尝试通过getprop命令
+                value = getSystemPropertyViaGetprop(key)
+            }
+            
+            if (value.isNotEmpty() && value != "unknown" && value != "null") {
+                propertiesInfo.append("$key: $value\n")
+                foundAny = true
+            }
+        }
+        
+        // 尝试获取双卡IMEI - 使用按slot获取的方法
+        for (slotIndex in 0..1) {
+            val imei = getImeiBySlot(slotIndex)
+            if (imei.isNotEmpty()) {
+                propertiesInfo.append("IMEI (SIM$slotIndex): $imei\n")
+                foundAny = true
+            }
+        }
+        
+        // 如果按slot获取失败，尝试直接获取已知的双卡IMEI属性
+        if (!foundAny) {
+            val dualSimKeys = listOf(
+                "ro.ril.oem.imei1",
+                "ro.ril.oem.imei2",
+                "ro.vendor.oem.imei2",
+                "ro.vendor.oem.imei.1",
+                "ro.vendor.oem.imei.2",
+                "ro.ril.oem.imei.1",
+                "ro.ril.oem.imei.2"
+            )
+            
+            for (key in dualSimKeys) {
+                var value = getSystemProperty(key)
+                if (value.isEmpty()) {
+                    value = getSystemPropertyViaGetprop(key)
+                }
+                
+                if (value.isNotEmpty() && value != "unknown" && value != "null") {
+                    propertiesInfo.append("$key: $value\n")
+                    foundAny = true
+                }
+            }
+        }
+        
+        // 最后尝试通过slotIndex动态获取其他格式的属性
+        for (slotIndex in 0..1) {
+            val slotKeys = listOf(
+                "ril.imei$slotIndex",
+                "gsm.imei$slotIndex",
+                "ro.ril.imei$slotIndex",
+                "persist.radio.imei$slotIndex"
+            )
+            
+            for (key in slotKeys) {
+                var value = getSystemProperty(key)
+                if (value.isEmpty()) {
+                    value = getSystemPropertyViaGetprop(key)
+                }
+                
+                if (value.isNotEmpty() && value != "unknown" && value != "null") {
+                    propertiesInfo.append("$key (SIM$slotIndex): $value\n")
+                    foundAny = true
+                }
+            }
+        }
+        
+        if (!foundAny) {
+            propertiesInfo.append("未找到IMEI相关系统属性\n")
+        }
+        
+        return propertiesInfo
+    }
+
+    /**
+     * 获取并显示IMEI信息到TextView
+     */
+    private fun getAndDisplayImei() {
+        val imeiInfo = StringBuilder()
+        
+        // 首先尝试从系统属性获取IMEI（不需要权限）
+        val propertiesInfo = getImeiFromSystemProperties()
+        imeiInfo.append(propertiesInfo)
+        imeiInfo.append("\n")
+        
+        // 然后通过TelephonyManager获取（需要权限）
+        if (!hasPhoneStatePermission()) {
+            imeiInfo.append("=== 通过TelephonyManager获取 ===\n")
+            imeiInfo.append("需要 READ_PHONE_STATE 权限\n")
+            tvImei.text = imeiInfo.toString()
+            // 请求权限
+            checkAndRequestPhoneStatePermission()
+            return
         }
 
-        // 添加所有无障碍服务信息
-        val accessibilityServices = getAccessibilityServices()
-        dataList.addAll(accessibilityServices)
+        try {
+            imeiInfo.append("=== 通过TelephonyManager获取 ===\n")
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            
+            // 获取IMEI（Android 8.0及以上）
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val imei = telephonyManager.imei
+                    if (imei != null && imei.isNotEmpty()) {
+                        imeiInfo.append("IMEI: $imei\n")
+                    } else {
+                        imeiInfo.append("IMEI: 无法获取\n")
+                    }
+                } catch (e: Exception) {
+                    imeiInfo.append("IMEI: 获取失败 - ${e.message}\n")
+                }
+                
+                // 获取IMEI2（双卡设备）
+                try {
+                    val imei2 = telephonyManager.getImei(1) // slotIndex = 1 for second SIM
+                    if (imei2 != null && imei2.isNotEmpty()) {
+                        imeiInfo.append("IMEI2: $imei2\n")
+                    }
+                } catch (e: Exception) {
+                    // 可能没有第二张SIM卡，忽略错误
+                }
+            } else {
+                // Android 8.0以下使用deviceId
+                @Suppress("DEPRECATION")
+                val deviceId = telephonyManager.deviceId
+                if (deviceId != null && deviceId.isNotEmpty()) {
+                    imeiInfo.append("Device ID: $deviceId\n")
+                } else {
+                    imeiInfo.append("Device ID: 无法获取\n")
+                }
+            }
+            
+            // 获取MEID（CDMA设备）
+            try {
+                val meid = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    telephonyManager.meid
+                } else {
+                    @Suppress("DEPRECATION")
+                    telephonyManager.deviceId
+                }
+                if (meid != null && meid.isNotEmpty() && meid != telephonyManager.imei) {
+                    imeiInfo.append("MEID: $meid\n")
+                }
+            } catch (e: Exception) {
+                // 忽略MEID获取错误
+            }
+            
+            // 获取设备序列号
+            try {
+                val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Build.getSerial()
+                } else {
+                    @Suppress("DEPRECATION")
+                    Build.SERIAL
+                }
+                if (serial != null && serial.isNotEmpty() && serial != "unknown") {
+                    imeiInfo.append("Serial: $serial\n")
+                }
+            } catch (e: SecurityException) {
+                imeiInfo.append("Serial: 权限不足\n")
+            } catch (e: Exception) {
+                imeiInfo.append("Serial: 获取失败 - ${e.message}\n")
+            }
+            
+            // 获取Android ID
+            try {
+                val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                if (androidId != null && androidId.isNotEmpty()) {
+                    imeiInfo.append("Android ID: $androidId")
+                }
+            } catch (e: Exception) {
+                imeiInfo.append("Android ID: 获取失败 - ${e.message}")
+            }
+            
+        } catch (e: SecurityException) {
+            imeiInfo.append("权限不足，无法通过TelephonyManager获取IMEI\n")
+            Log.e("MainActivity", "获取IMEI权限不足", e)
+        } catch (e: Exception) {
+            imeiInfo.append("通过TelephonyManager获取失败: ${e.message}\n")
+            Log.e("MainActivity", "获取IMEI失败", e)
+        }
+        
+        tvImei.text = if (imeiInfo.isNotEmpty()) {
+            imeiInfo.toString().trim()
+        } else {
+            "无法获取IMEI信息"
+        }
+    }
 
-        // 添加空行分隔
-        dataList.add(ListItem("", ItemType.ACCESSIBILITY_SERVICE))
-
-        // 添加VPN状态
-        val vpnStatus = checkVpnStatus()
-        dataList.addAll(vpnStatus)
-
-        // 添加分隔符
+    /**
+     * 加载初始数据
+     */
+    private fun loadInitialData() {
+        // 刷新所有卡片显示
+        refreshBootId()
+        refreshDeviceIds()
+        refreshAccessibilityServices()
+        refreshVpnStatus()
+        refreshLockScreenStatus()
+        getAndDisplayImei()
+        
+        // 只加载应用列表到 RecyclerView
+        dataList.clear()
         dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-
-        // 获取并添加真实的应用列表
         val apps = getAppListForDisplay()
         dataList.addAll(apps)
-
         adapter.notifyDataSetChanged()
     }
 
@@ -641,14 +1001,38 @@ class MainActivity : ComponentActivity() {
      * 刷新无障碍服务信息
      */
     private fun refreshAccessibilityServices() {
-        // 清除现有的无障碍服务项
-        dataList.removeAll { it.type == ItemType.ACCESSIBILITY_SERVICE }
-
-        // 在开头重新添加无障碍服务信息
-        val accessibilityServices = getAccessibilityServices()
-        dataList.addAll(0, accessibilityServices)
-
-        adapter.notifyDataSetChanged()
+        val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
+            AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+        )
+        
+        val serviceInfo = StringBuilder()
+        
+        if (enabledServices.isEmpty()) {
+            serviceInfo.append("没有启用的无障碍服务")
+        } else {
+            serviceInfo.append("已启用 ${enabledServices.size} 个无障碍服务:\n\n")
+            
+            for (serviceInfoItem in enabledServices) {
+                val serviceName = try {
+                    val packageManager = packageManager
+                    val appInfo = packageManager.getApplicationInfo(serviceInfoItem.resolveInfo.serviceInfo.packageName, 0)
+                    packageManager.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    serviceInfoItem.resolveInfo.serviceInfo.packageName
+                }
+                
+                val packageName = serviceInfoItem.resolveInfo.serviceInfo.packageName
+                val isRunning = isAccessibilityServiceRunning(packageName, serviceInfoItem.resolveInfo.serviceInfo.name)
+                val statusText = if (isRunning) "运行中" else "已停止"
+                
+                serviceInfo.append("• $serviceName\n")
+                serviceInfo.append("  包名: $packageName\n")
+                serviceInfo.append("  状态: $statusText\n\n")
+            }
+        }
+        
+        tvAccessibilityServices.text = serviceInfo.toString().trim()
     }
 
     /**
@@ -742,24 +1126,95 @@ class MainActivity : ComponentActivity() {
      * 刷新VPN状态
      */
     private fun refreshVpnStatus() {
-        // 清除现有的VPN状态项
-        dataList.removeAll { it.type == ItemType.VPN_STATUS }
+        val vpnInfo = StringBuilder()
+        
+        try {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networks = connectivityManager.allNetworks
+            var vpnConnected = false
+            val vpnNetworks = ArrayList<String>()
 
-        // 获取VPN状态
-        val vpnStatus = checkVpnStatus()
+            for (network in networks) {
+                val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
 
-        // 找到无障碍服务项的结束位置
-        val lastAccessibilityIndex = dataList.indexOfLast { it.type == ItemType.ACCESSIBILITY_SERVICE }
+                if (networkCapabilities != null) {
+                    if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                        vpnConnected = true
+                        val networkInfo = StringBuilder()
+                        
+                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                            networkInfo.append("状态: 已验证\n")
+                        } else {
+                            networkInfo.append("状态: 未验证\n")
+                        }
 
-        if (lastAccessibilityIndex >= 0) {
-            // 在无障碍服务后面添加VPN状态
-            dataList.addAll(lastAccessibilityIndex + 1, vpnStatus)
-        } else {
-            // 如果没有无障碍服务项，则添加到开头
-            dataList.addAll(0, vpnStatus)
+                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                            networkInfo.append("互联网: 可用\n")
+                        } else {
+                            networkInfo.append("互联网: 不可用\n")
+                        }
+
+                        vpnNetworks.add(networkInfo.toString())
+                    }
+                }
+            }
+
+            if (vpnConnected) {
+                vpnInfo.append("VPN 状态: 已连接\n")
+                vpnInfo.append("检测到 ${vpnNetworks.size} 个 VPN 连接\n\n")
+                for ((index, info) in vpnNetworks.withIndex()) {
+                    vpnInfo.append("VPN 连接 ${index + 1}:\n$info\n")
+                }
+            } else {
+                vpnInfo.append("VPN 状态: 未连接\n")
+                vpnInfo.append("当前没有检测到 VPN 连接")
+            }
+
+        } catch (e: Exception) {
+            vpnInfo.append("VPN 状态检测失败: ${e.message}")
+            Log.e("MainActivity", "检测VPN状态失败", e)
+        }
+        
+        tvVpnStatus.text = vpnInfo.toString().trim()
+    }
+
+    /**
+     * 获取锁屏状态
+     */
+    private fun getLockScreenStatus(): List<ListItem> {
+        val lockScreenItems = ArrayList<ListItem>()
+
+        try {
+            val status = LockScreenDetection.detectLockScreenStatus(this)
+            val description = LockScreenDetection.getStatusDescription(status)
+            
+            // 将描述文本按行分割，每行作为一个 ListItem
+            val lines = description.split("\n")
+            for (line in lines) {
+                if (line.isNotEmpty()) {
+                    lockScreenItems.add(ListItem(line, ItemType.LOCK_SCREEN))
+                }
+            }
+        } catch (e: Exception) {
+            lockScreenItems.add(ListItem("锁屏状态检测失败: ${e.message}", ItemType.LOCK_SCREEN))
+            Log.e("MainActivity", "获取锁屏状态失败", e)
         }
 
-        adapter.notifyDataSetChanged()
+        return lockScreenItems
+    }
+
+    /**
+     * 刷新锁屏状态
+     */
+    private fun refreshLockScreenStatus() {
+        try {
+            val status = LockScreenDetection.detectLockScreenStatus(this)
+            val description = LockScreenDetection.getStatusDescription(status)
+            tvLockScreenStatus.text = description.trim()
+        } catch (e: Exception) {
+            tvLockScreenStatus.text = "锁屏状态检测失败: ${e.message}"
+            Log.e("MainActivity", "获取锁屏状态失败", e)
+        }
     }
 
     private fun testAdbProcess(){
@@ -771,6 +1226,9 @@ class MainActivity : ComponentActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = InfiniteScrollAdapter(dataList)
         recyclerView.adapter = adapter
+        // 优化 RecyclerView 性能
+        recyclerView.setHasFixedSize(true)
+        recyclerView.itemAnimator = null // 禁用动画以提高性能
 
         // 设置滚动监听器，实现无限加载功能
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {

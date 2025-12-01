@@ -15,6 +15,7 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
         private const val VIEW_TYPE_ACCESSIBILITY = 2
         private const val VIEW_TYPE_APP_LIST = 3
         private const val VIEW_TYPE_VPN_STATUS = 4
+        private const val VIEW_TYPE_LOCK_SCREEN = 5
     }
 
     class BootIdViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -39,12 +40,17 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
         val textView: TextView = itemView.findViewById(android.R.id.text1)
     }
 
+    class LockScreenViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val textView: TextView = itemView.findViewById(android.R.id.text1)
+    }
+
     override fun getItemViewType(position: Int): Int {
         return when (dataList[position].type) {
             ItemType.BOOT_ID -> VIEW_TYPE_BOOT_ID
             ItemType.DEVICE_ID -> VIEW_TYPE_DEVICE_ID
             ItemType.ACCESSIBILITY_SERVICE -> VIEW_TYPE_ACCESSIBILITY
             ItemType.VPN_STATUS -> VIEW_TYPE_VPN_STATUS
+            ItemType.LOCK_SCREEN -> VIEW_TYPE_LOCK_SCREEN
             ItemType.APP_LIST -> VIEW_TYPE_APP_LIST
         }
     }
@@ -75,6 +81,11 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
                 val view = LayoutInflater.from(parent.context)
                     .inflate(android.R.layout.simple_list_item_1, parent, false)
                 AppListViewHolder(view)
+            }
+            VIEW_TYPE_LOCK_SCREEN -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(android.R.layout.simple_list_item_1, parent, false)
+                LockScreenViewHolder(view)
             }
             else -> throw IllegalArgumentException("Unknown view type: $viewType")
         }
@@ -168,6 +179,36 @@ class InfiniteScrollAdapter(private val dataList: List<ListItem>) :
             }
             is AppListViewHolder -> {
                 holder.textView.text = item.text
+            }
+            is LockScreenViewHolder -> {
+                holder.textView.text = item.text
+                // 设置锁屏状态的样式
+                when {
+                    item.text.startsWith("===") -> {
+                        // 标题项
+                        holder.textView.textSize = 16f
+                        holder.textView.setPadding(32, 16, 32, 8)
+                        holder.textView.setTextColor(0xFF00ACC1.toInt()) // 青色
+                    }
+                    item.text.contains("✓") -> {
+                        // 已设置项
+                        holder.textView.textSize = 14f
+                        holder.textView.setPadding(48, 8, 32, 8)
+                        holder.textView.setTextColor(0xFF4CAF50.toInt()) // 绿色
+                    }
+                    item.text.contains("✗") -> {
+                        // 未设置项
+                        holder.textView.textSize = 14f
+                        holder.textView.setPadding(48, 8, 32, 8)
+                        holder.textView.setTextColor(0xFF757575.toInt()) // 灰色
+                    }
+                    else -> {
+                        // 其他项
+                        holder.textView.textSize = 14f
+                        holder.textView.setPadding(48, 8, 32, 8)
+                        holder.textView.setTextColor(0xFF000000.toInt()) // 黑色
+                    }
+                }
             }
         }
     }

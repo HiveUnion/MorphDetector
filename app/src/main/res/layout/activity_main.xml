@@ -1,79 +1,437 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="@color/background">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="#E8F5E9">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <Button
-            android:id="@+id/btnRefreshBootId"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="刷新 Boot ID"
-            android:layout_marginEnd="8dp" />
+            android:orientation="vertical"
+            android:padding="12dp">
 
-        <Button
-            android:id="@+id/btnRefreshDrmId"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="刷新设备标识符" />
+            <!-- Boot ID 卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
 
-    </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="#E3F2FD">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Boot ID"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
 
-        <Button
-            android:id="@+id/btnRefreshAccessibility"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="刷新无障碍服务"
-            android:layout_marginEnd="8dp" />
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
 
-        <Button
-            android:id="@+id/btnOpenAccessibilitySettings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="打开无障碍设置" />
+                        <TextView
+                            android:id="@+id/tvBootId"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 Boot ID"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
 
-    </LinearLayout>
+                    <Button
+                        android:id="@+id/btnRefreshBootId"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新 Boot ID"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="#FFF3E0">
+            <!-- 设备标识符卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
 
-        <Button
-            android:id="@+id/btnRefreshVpn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="刷新VPN状态"
-            android:layout_marginEnd="8dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-        <Button
-            android:id="@+id/btnOpenVpnSettings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="打开VPN设置" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="设备标识符"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
 
-    </LinearLayout>
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
+                        <TextView
+                            android:id="@+id/tvDeviceIds"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取设备标识符"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
 
-</LinearLayout>
+                    <Button
+                        android:id="@+id/btnRefreshDrmId"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新设备标识符"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 无障碍服务卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="无障碍服务"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvAccessibilityServices"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取无障碍服务信息"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Button
+                            android:id="@+id/btnRefreshAccessibility"
+                            style="@style/Widget.TestAutoJs.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/button_primary_ripple"
+                            android:text="刷新服务"
+                            android:textColor="@color/on_primary" />
+
+                        <Button
+                            android:id="@+id/btnOpenAccessibilitySettings"
+                            style="@style/Widget.TestAutoJs.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/button_primary_ripple"
+                            android:text="打开设置"
+                            android:textColor="@color/on_primary" />
+
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- VPN 状态卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="VPN 状态"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvVpnStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 VPN 状态"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Button
+                            android:id="@+id/btnRefreshVpn"
+                            style="@style/Widget.TestAutoJs.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/button_primary_ripple"
+                            android:text="刷新状态"
+                            android:textColor="@color/on_primary" />
+
+                        <Button
+                            android:id="@+id/btnOpenVpnSettings"
+                            style="@style/Widget.TestAutoJs.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/button_primary_ripple"
+                            android:text="打开设置"
+                            android:textColor="@color/on_primary" />
+
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 锁屏状态卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="锁屏状态"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvLockScreenStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取锁屏状态"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnRefreshLockScreen"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新锁屏状态"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- IMEI 信息卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="IMEI 信息"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvImei"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 IMEI"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnGetImei"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="获取 IMEI"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 应用列表卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="应用列表"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="400dp"
+                        android:maxHeight="600dp"
+                        android:padding="8dp"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
