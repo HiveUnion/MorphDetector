@@ -69,11 +69,17 @@ class MainActivity : ComponentActivity() {
         // 正确设置 activity_main 布局文件
         setContentView(R.layout.activity_main)
 
-        // 获取并打印应用列表（优先执行）
-        getInstalledApps()
-        
-        // 简单测试应用列表获取
-        testGetApps()
+        // 将耗时操作移到后台线程执行，避免阻塞主线程
+        Thread {
+            // 获取并打印应用列表（优先执行）
+            getInstalledApps()
+            
+            // 简单测试应用列表获取
+            testGetApps()
+            
+            // 获取并打印 vendor.gsm.serial
+            getAndPrintVendorGsmSerial()
+        }.start()
 
         // 初始化 RecyclerView
         setupRecyclerView()
@@ -216,13 +222,47 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 刷新所有信息显示
-        refreshBootId()
-        refreshDeviceIds()
-        refreshAccessibilityServices()
-        refreshVpnStatus()
-        refreshLockScreenStatus()
-        getAndDisplayImei()
+        // 异步刷新所有信息显示，避免阻塞主线程
+        refreshAllDataAsync()
+    }
+    
+    /**
+     * 异步刷新所有数据
+     */
+    private fun refreshAllDataAsync() {
+        Thread {
+            // 在后台线程执行耗时操作
+            val bootId = try {
+                val bootIdFile = java.io.File("/proc/sys/kernel/random/boot_id")
+                if (bootIdFile.exists()) {
+                    bootIdFile.readText().trim()
+                } else {
+                    "无法读取 Boot ID"
+                }
+            } catch (e: Exception) {
+                "读取失败: ${e.message}"
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvBootId.text = bootId
+            }
+            
+            // 刷新设备标识符（包含耗时操作）
+            refreshDeviceIdsAsync()
+            
+            // 刷新无障碍服务
+            refreshAccessibilityServicesAsync()
+            
+            // 刷新VPN状态
+            refreshVpnStatusAsync()
+            
+            // 刷新锁屏状态
+            refreshLockScreenStatusAsync()
+            
+            // 刷新IMEI（最耗时）
+            refreshImeiAsync()
+        }.start()
     }
 
     /**
@@ -557,76 +597,100 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 刷新设备标识符
+     * 刷新设备标识符（异步版本）
+     */
+    private fun refreshDeviceIdsAsync() {
+        Thread {
+            val deviceInfo = StringBuilder()
+            
+            try {
+                // 1. AndroidId
+                try {
+                    val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                    if (androidId != null && androidId.isNotEmpty()) {
+                        deviceInfo.append("AndroidId: $androidId\n")
+                    } else {
+                        deviceInfo.append("AndroidId: 无法获取\n")
+                    }
+                } catch (e: Exception) {
+                    deviceInfo.append("AndroidId: 读取失败 - ${e.message}\n")
+                }
+                
+                // 2. IMEI
+                if (hasPhoneStatePermission()) {
+                    try {
+                        val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                        val imei = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            telephonyManager.imei
+                        } else {
+                            @Suppress("DEPRECATION")
+                            telephonyManager.deviceId
+                        }
+                        if (imei != null && imei.isNotEmpty()) {
+                            deviceInfo.append("IMEI: $imei\n")
+                        } else {
+                            deviceInfo.append("IMEI: 无法获取\n")
+                        }
+                    } catch (e: SecurityException) {
+                        deviceInfo.append("IMEI: 权限不足\n")
+                    } catch (e: Exception) {
+                        deviceInfo.append("IMEI: 读取失败 - ${e.message}\n")
+                    }
+                } else {
+                    deviceInfo.append("IMEI: 需要 READ_PHONE_STATE 权限\n")
+                }
+                
+                // 3. Serial
+                if (hasPhoneStatePermission()) {
+                    try {
+                        val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            Build.getSerial()
+                        } else {
+                            @Suppress("DEPRECATION")
+                            Build.SERIAL
+                        }
+                        if (serial != null && serial.isNotEmpty() && serial != "unknown") {
+                            deviceInfo.append("Serial: $serial\n")
+                        } else {
+                            deviceInfo.append("Serial: 无法获取\n")
+                        }
+                    } catch (e: SecurityException) {
+                        deviceInfo.append("Serial: 权限不足\n")
+                    } catch (e: Exception) {
+                        deviceInfo.append("Serial: 读取失败 - ${e.message}\n")
+                    }
+                } else {
+                    deviceInfo.append("Serial: 需要 READ_PHONE_STATE 权限\n")
+                }
+                
+                // 4. vendor.gsm.serial（耗时操作，在后台线程执行）
+                try {
+                    val vendorGsmSerial = SystemPropertyUtil.getVendorGsmSerial()
+                    if (vendorGsmSerial.isNotEmpty()) {
+                        deviceInfo.append("vendor.gsm.serial: $vendorGsmSerial\n")
+                    } else {
+                        deviceInfo.append("vendor.gsm.serial: 无法获取\n")
+                    }
+                } catch (e: Exception) {
+                    deviceInfo.append("vendor.gsm.serial: 读取失败 - ${e.message}\n")
+                }
+                
+            } catch (e: Exception) {
+                deviceInfo.append("获取设备标识符失败: ${e.message}")
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvDeviceIds.text = deviceInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新设备标识符（同步版本，用于按钮点击）
      */
     private fun refreshDeviceIds() {
-        val deviceInfo = StringBuilder()
-        
-        try {
-            // 1. AndroidId
-            try {
-                val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
-                if (androidId != null && androidId.isNotEmpty()) {
-                    deviceInfo.append("AndroidId: $androidId\n")
-                } else {
-                    deviceInfo.append("AndroidId: 无法获取\n")
-                }
-            } catch (e: Exception) {
-                deviceInfo.append("AndroidId: 读取失败 - ${e.message}\n")
-            }
-            
-            // 2. IMEI
-            if (hasPhoneStatePermission()) {
-                try {
-                    val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                    val imei = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        telephonyManager.imei
-                    } else {
-                        @Suppress("DEPRECATION")
-                        telephonyManager.deviceId
-                    }
-                    if (imei != null && imei.isNotEmpty()) {
-                        deviceInfo.append("IMEI: $imei\n")
-                    } else {
-                        deviceInfo.append("IMEI: 无法获取\n")
-                    }
-                } catch (e: SecurityException) {
-                    deviceInfo.append("IMEI: 权限不足\n")
-                } catch (e: Exception) {
-                    deviceInfo.append("IMEI: 读取失败 - ${e.message}\n")
-                }
-            } else {
-                deviceInfo.append("IMEI: 需要 READ_PHONE_STATE 权限\n")
-            }
-            
-            // 3. Serial
-            if (hasPhoneStatePermission()) {
-                try {
-                    val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Build.getSerial()
-                    } else {
-                        @Suppress("DEPRECATION")
-                        Build.SERIAL
-                    }
-                    if (serial != null && serial.isNotEmpty() && serial != "unknown") {
-                        deviceInfo.append("Serial: $serial\n")
-                    } else {
-                        deviceInfo.append("Serial: 无法获取\n")
-                    }
-                } catch (e: SecurityException) {
-                    deviceInfo.append("Serial: 权限不足\n")
-                } catch (e: Exception) {
-                    deviceInfo.append("Serial: 读取失败 - ${e.message}\n")
-                }
-            } else {
-                deviceInfo.append("Serial: 需要 READ_PHONE_STATE 权限\n")
-            }
-            
-        } catch (e: Exception) {
-            deviceInfo.append("获取设备标识符失败: ${e.message}")
-        }
-        
-        tvDeviceIds.text = deviceInfo.toString().trim()
+        refreshDeviceIdsAsync()
     }
 
     /**
@@ -829,25 +893,28 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 获取并显示IMEI信息到TextView
+     * 刷新IMEI信息（异步版本）
      */
-    private fun getAndDisplayImei() {
-        val imeiInfo = StringBuilder()
-        
-        // 首先尝试从系统属性获取IMEI（不需要权限）
-        val propertiesInfo = getImeiFromSystemProperties()
-        imeiInfo.append(propertiesInfo)
-        imeiInfo.append("\n")
-        
-        // 然后通过TelephonyManager获取（需要权限）
-        if (!hasPhoneStatePermission()) {
-            imeiInfo.append("=== 通过TelephonyManager获取 ===\n")
-            imeiInfo.append("需要 READ_PHONE_STATE 权限\n")
-            tvImei.text = imeiInfo.toString()
-            // 请求权限
-            checkAndRequestPhoneStatePermission()
-            return
-        }
+    private fun refreshImeiAsync() {
+        Thread {
+            val imeiInfo = StringBuilder()
+            
+            // 首先尝试从系统属性获取IMEI（不需要权限，但耗时）
+            val propertiesInfo = getImeiFromSystemProperties()
+            imeiInfo.append(propertiesInfo)
+            imeiInfo.append("\n")
+            
+            // 然后通过TelephonyManager获取（需要权限）
+            if (!hasPhoneStatePermission()) {
+                imeiInfo.append("=== 通过TelephonyManager获取 ===\n")
+                imeiInfo.append("需要 READ_PHONE_STATE 权限\n")
+                // 在主线程更新UI并请求权限
+                runOnUiThread {
+                    tvImei.text = imeiInfo.toString()
+                    checkAndRequestPhoneStatePermission()
+                }
+                return@Thread
+            }
 
         try {
             imeiInfo.append("=== 通过TelephonyManager获取 ===\n")
@@ -936,31 +1003,58 @@ class MainActivity : ComponentActivity() {
             Log.e("MainActivity", "获取IMEI失败", e)
         }
         
-        tvImei.text = if (imeiInfo.isNotEmpty()) {
-            imeiInfo.toString().trim()
-        } else {
-            "无法获取IMEI信息"
+        // 在主线程更新UI
+        runOnUiThread {
+            tvImei.text = if (imeiInfo.isNotEmpty()) {
+                imeiInfo.toString().trim()
+            } else {
+                "无法获取IMEI信息"
+            }
         }
+        }.start()
+    }
+    
+    /**
+     * 获取并显示IMEI信息到TextView（同步版本，用于按钮点击）
+     */
+    private fun getAndDisplayImei() {
+        refreshImeiAsync()
     }
 
     /**
      * 加载初始数据
      */
     private fun loadInitialData() {
-        // 刷新所有卡片显示
-        refreshBootId()
-        refreshDeviceIds()
-        refreshAccessibilityServices()
-        refreshVpnStatus()
-        refreshLockScreenStatus()
-        getAndDisplayImei()
+        // 异步刷新所有卡片显示
+        refreshAllDataAsync()
         
-        // 只加载应用列表到 RecyclerView
+        // 应用列表加载是耗时操作，移到后台线程
         dataList.clear()
         dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-        val apps = getAppListForDisplay()
-        dataList.addAll(apps)
+        dataList.add(ListItem("正在加载应用列表...", ItemType.APP_LIST))
         adapter.notifyDataSetChanged()
+        
+        // 在后台线程加载应用列表
+        Thread {
+            try {
+                val apps = getAppListForDisplay()
+                // 在主线程更新UI
+                runOnUiThread {
+                    dataList.clear()
+                    dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
+                    dataList.addAll(apps)
+                    adapter.notifyDataSetChanged()
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "加载应用列表失败", e)
+                runOnUiThread {
+                    dataList.clear()
+                    dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
+                    dataList.add(ListItem("加载应用列表失败: ${e.message}", ItemType.APP_LIST))
+                    adapter.notifyDataSetChanged()
+                }
+            }
+        }.start()
     }
 
     /**
@@ -998,41 +1092,52 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 刷新无障碍服务信息
+     * 刷新无障碍服务信息（异步版本）
+     */
+    private fun refreshAccessibilityServicesAsync() {
+        Thread {
+            val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
+                AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+            )
+            
+            val serviceInfo = StringBuilder()
+            
+            if (enabledServices.isEmpty()) {
+                serviceInfo.append("没有启用的无障碍服务")
+            } else {
+                serviceInfo.append("已启用 ${enabledServices.size} 个无障碍服务:\n\n")
+                
+                for (serviceInfoItem in enabledServices) {
+                    val serviceName = try {
+                        val packageManager = packageManager
+                        val appInfo = packageManager.getApplicationInfo(serviceInfoItem.resolveInfo.serviceInfo.packageName, 0)
+                        packageManager.getApplicationLabel(appInfo).toString()
+                    } catch (e: Exception) {
+                        serviceInfoItem.resolveInfo.serviceInfo.packageName
+                    }
+                    
+                    val packageName = serviceInfoItem.resolveInfo.serviceInfo.packageName
+                    val isRunning = isAccessibilityServiceRunning(packageName, serviceInfoItem.resolveInfo.serviceInfo.name)
+                    val statusText = if (isRunning) "运行中" else "已停止"
+                    
+                    serviceInfo.append("• $serviceName\n")
+                    serviceInfo.append("  包名: $packageName\n")
+                    serviceInfo.append("  状态: $statusText\n\n")
+                }
+            }
+            
+            runOnUiThread {
+                tvAccessibilityServices.text = serviceInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新无障碍服务信息（同步版本，用于按钮点击）
      */
     private fun refreshAccessibilityServices() {
-        val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-        )
-        
-        val serviceInfo = StringBuilder()
-        
-        if (enabledServices.isEmpty()) {
-            serviceInfo.append("没有启用的无障碍服务")
-        } else {
-            serviceInfo.append("已启用 ${enabledServices.size} 个无障碍服务:\n\n")
-            
-            for (serviceInfoItem in enabledServices) {
-                val serviceName = try {
-                    val packageManager = packageManager
-                    val appInfo = packageManager.getApplicationInfo(serviceInfoItem.resolveInfo.serviceInfo.packageName, 0)
-                    packageManager.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    serviceInfoItem.resolveInfo.serviceInfo.packageName
-                }
-                
-                val packageName = serviceInfoItem.resolveInfo.serviceInfo.packageName
-                val isRunning = isAccessibilityServiceRunning(packageName, serviceInfoItem.resolveInfo.serviceInfo.name)
-                val statusText = if (isRunning) "运行中" else "已停止"
-                
-                serviceInfo.append("• $serviceName\n")
-                serviceInfo.append("  包名: $packageName\n")
-                serviceInfo.append("  状态: $statusText\n\n")
-            }
-        }
-        
-        tvAccessibilityServices.text = serviceInfo.toString().trim()
+        refreshAccessibilityServicesAsync()
     }
 
     /**
@@ -1123,59 +1228,70 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 刷新VPN状态
+     * 刷新VPN状态（异步版本）
      */
-    private fun refreshVpnStatus() {
-        val vpnInfo = StringBuilder()
-        
-        try {
-            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networks = connectivityManager.allNetworks
-            var vpnConnected = false
-            val vpnNetworks = ArrayList<String>()
+    private fun refreshVpnStatusAsync() {
+        Thread {
+            val vpnInfo = StringBuilder()
+            
+            try {
+                val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val networks = connectivityManager.allNetworks
+                var vpnConnected = false
+                val vpnNetworks = ArrayList<String>()
 
-            for (network in networks) {
-                val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
+                for (network in networks) {
+                    val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
 
-                if (networkCapabilities != null) {
-                    if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                        vpnConnected = true
-                        val networkInfo = StringBuilder()
-                        
-                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-                            networkInfo.append("状态: 已验证\n")
-                        } else {
-                            networkInfo.append("状态: 未验证\n")
+                    if (networkCapabilities != null) {
+                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                            vpnConnected = true
+                            val networkInfo = StringBuilder()
+                            
+                            if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                                networkInfo.append("状态: 已验证\n")
+                            } else {
+                                networkInfo.append("状态: 未验证\n")
+                            }
+
+                            if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                                networkInfo.append("互联网: 可用\n")
+                            } else {
+                                networkInfo.append("互联网: 不可用\n")
+                            }
+
+                            vpnNetworks.add(networkInfo.toString())
                         }
-
-                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                            networkInfo.append("互联网: 可用\n")
-                        } else {
-                            networkInfo.append("互联网: 不可用\n")
-                        }
-
-                        vpnNetworks.add(networkInfo.toString())
                     }
                 }
-            }
 
-            if (vpnConnected) {
-                vpnInfo.append("VPN 状态: 已连接\n")
-                vpnInfo.append("检测到 ${vpnNetworks.size} 个 VPN 连接\n\n")
-                for ((index, info) in vpnNetworks.withIndex()) {
-                    vpnInfo.append("VPN 连接 ${index + 1}:\n$info\n")
+                if (vpnConnected) {
+                    vpnInfo.append("VPN 状态: 已连接\n")
+                    vpnInfo.append("检测到 ${vpnNetworks.size} 个 VPN 连接\n\n")
+                    for ((index, info) in vpnNetworks.withIndex()) {
+                        vpnInfo.append("VPN 连接 ${index + 1}:\n$info\n")
+                    }
+                } else {
+                    vpnInfo.append("VPN 状态: 未连接\n")
+                    vpnInfo.append("当前没有检测到 VPN 连接")
                 }
-            } else {
-                vpnInfo.append("VPN 状态: 未连接\n")
-                vpnInfo.append("当前没有检测到 VPN 连接")
-            }
 
-        } catch (e: Exception) {
-            vpnInfo.append("VPN 状态检测失败: ${e.message}")
-            Log.e("MainActivity", "检测VPN状态失败", e)
-        }
-        
-        tvVpnStatus.text = vpnInfo.toString().trim()
+            } catch (e: Exception) {
+                vpnInfo.append("VPN 状态检测失败: ${e.message}")
+                Log.e("MainActivity", "检测VPN状态失败", e)
+            }
+            
+            runOnUiThread {
+                tvVpnStatus.text = vpnInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新VPN状态（同步版本，用于按钮点击）
+     */
+    private fun refreshVpnStatus() {
+        refreshVpnStatusAsync()
     }
 
     /**
@@ -1204,16 +1320,48 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 刷新锁屏状态
+     * 刷新锁屏状态（异步版本）
+     */
+    private fun refreshLockScreenStatusAsync() {
+        val context = this
+        Thread {
+            try {
+                val status = LockScreenDetection.detectLockScreenStatus(context)
+                val description = LockScreenDetection.getStatusDescription(status)
+                runOnUiThread {
+                    tvLockScreenStatus.text = description.trim()
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "获取锁屏状态失败", e)
+                runOnUiThread {
+                    tvLockScreenStatus.text = "锁屏状态检测失败: ${e.message}"
+                }
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新锁屏状态（同步版本，用于按钮点击）
      */
     private fun refreshLockScreenStatus() {
+        refreshLockScreenStatusAsync()
+    }
+
+    /**
+     * 获取并打印 vendor.gsm.serial
+     */
+    private fun getAndPrintVendorGsmSerial() {
         try {
-            val status = LockScreenDetection.detectLockScreenStatus(this)
-            val description = LockScreenDetection.getStatusDescription(status)
-            tvLockScreenStatus.text = description.trim()
+            val vendorGsmSerial = SystemPropertyUtil.getVendorGsmSerial()
+            if (vendorGsmSerial.isNotEmpty()) {
+                Log.d("MainActivity", "=== vendor.gsm.serial ===")
+                Log.d("MainActivity", "vendor.gsm.serial: $vendorGsmSerial")
+                Log.d("MainActivity", "========================")
+            } else {
+                Log.d("MainActivity", "vendor.gsm.serial: 未获取到值或为空")
+            }
         } catch (e: Exception) {
-            tvLockScreenStatus.text = "锁屏状态检测失败: ${e.message}"
-            Log.e("MainActivity", "获取锁屏状态失败", e)
+            Log.e("MainActivity", "获取 vendor.gsm.serial 失败: ${e.message}", e)
         }
     }
 
