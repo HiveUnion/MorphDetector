@@ -69,6 +69,11 @@ dependencies {
     implementation(libs.androidx.material)
     implementation(libs.androidx.coordinatorlayout)
     implementation(libs.androidx.appcompat)
+    
+    // BouncyCastle for ASN.1 parsing
+    implementation("org.bouncycastle:bcprov-jdk18on:1.77")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.77")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

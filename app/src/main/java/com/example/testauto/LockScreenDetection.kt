@@ -197,10 +197,10 @@ object LockScreenDetection {
             Log.d(TAG, "无法通过 dumpsys 获取指纹数量: ${e.message}")
             // 降级方案
             try {
-                val fingerprintManager = context.getSystemService(Context.FINGERPRINT_SERVICE) as? FingerprintManager
-                if (fingerprintManager != null && fingerprintManager.hasEnrolledFingerprints()) {
-                    1
-                } else {
+            val fingerprintManager = context.getSystemService(Context.FINGERPRINT_SERVICE) as? FingerprintManager
+            if (fingerprintManager != null && fingerprintManager.hasEnrolledFingerprints()) {
+                1
+            } else {
                     0
                 }
             } catch (se: SecurityException) {
@@ -233,18 +233,18 @@ object LockScreenDetection {
             // 方法2: 通过 BiometricManager 检查（Android 11+）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 try {
-                    val biometricManager = context.getSystemService(Context.BIOMETRIC_SERVICE) as? BiometricManager
-                    if (biometricManager != null) {
-                        val canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
-                        if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
-                            Log.d(TAG, "通过 BiometricManager 检测到生物识别功能")
-                            // 注意：BiometricManager 无法区分指纹和人脸，只能检测是否有生物识别
-                            // 这里假设如果指纹未设置，则可能是人脸
-                            val fingerprintInfo = checkFingerprintUnlock(context)
-                            if (!fingerprintInfo.first) {
-                                return true // 有生物识别但无指纹，可能是人脸
-                            }
+                val biometricManager = context.getSystemService(Context.BIOMETRIC_SERVICE) as? BiometricManager
+                if (biometricManager != null) {
+                    val canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                    if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                        Log.d(TAG, "通过 BiometricManager 检测到生物识别功能")
+                        // 注意：BiometricManager 无法区分指纹和人脸，只能检测是否有生物识别
+                        // 这里假设如果指纹未设置，则可能是人脸
+                        val fingerprintInfo = checkFingerprintUnlock(context)
+                        if (!fingerprintInfo.first) {
+                            return true // 有生物识别但无指纹，可能是人脸
                         }
+                    }
                     }
                 } catch (e: SecurityException) {
                     Log.d(TAG, "通过 BiometricManager 检查人脸解锁失败: 权限不足 - ${e.message}")
@@ -252,16 +252,16 @@ object LockScreenDetection {
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // Android 10 使用旧版 API
                 try {
-                    val biometricManager = context.getSystemService(Context.BIOMETRIC_SERVICE) as? BiometricManager
-                    if (biometricManager != null) {
-                        val canAuthenticate = biometricManager.canAuthenticate()
-                        if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
-                            Log.d(TAG, "通过 BiometricManager 检测到生物识别功能 (Android 10)")
-                            val fingerprintInfo = checkFingerprintUnlock(context)
-                            if (!fingerprintInfo.first) {
-                                return true // 有生物识别但无指纹，可能是人脸
-                            }
+                val biometricManager = context.getSystemService(Context.BIOMETRIC_SERVICE) as? BiometricManager
+                if (biometricManager != null) {
+                    val canAuthenticate = biometricManager.canAuthenticate()
+                    if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                        Log.d(TAG, "通过 BiometricManager 检测到生物识别功能 (Android 10)")
+                        val fingerprintInfo = checkFingerprintUnlock(context)
+                        if (!fingerprintInfo.first) {
+                            return true // 有生物识别但无指纹，可能是人脸
                         }
+                    }
                     }
                 } catch (e: SecurityException) {
                     Log.d(TAG, "通过 BiometricManager 检查人脸解锁失败: 权限不足 - ${e.message}")

@@ -25,9 +25,9 @@
                 app:cardElevation="2dp"
                 app:strokeWidth="0dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="16dp">
 
@@ -62,13 +62,13 @@
                             android:lineSpacingExtra="4dp" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <Button
-                        android:id="@+id/btnRefreshBootId"
+        <Button
+            android:id="@+id/btnRefreshBootId"
                         style="@style/Widget.TestAutoJs.Button"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                         android:background="@drawable/button_primary_ripple"
-                        android:text="刷新 Boot ID"
+            android:text="刷新 Boot ID"
                         android:textColor="@color/on_primary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -119,15 +119,15 @@
                             android:lineSpacingExtra="4dp" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <Button
-                        android:id="@+id/btnRefreshDrmId"
+        <Button
+            android:id="@+id/btnRefreshDrmId"
                         style="@style/Widget.TestAutoJs.Button"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                         android:background="@drawable/button_primary_ripple"
                         android:text="刷新设备标识符"
                         android:textColor="@color/on_primary" />
-                </LinearLayout>
+    </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- 无障碍服务卡片 -->
@@ -175,34 +175,34 @@
                             android:lineSpacingExtra="4dp" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <Button
-                            android:id="@+id/btnRefreshAccessibility"
+        <Button
+            android:id="@+id/btnRefreshAccessibility"
                             style="@style/Widget.TestAutoJs.Button"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="8dp"
                             android:background="@drawable/button_primary_ripple"
                             android:text="刷新服务"
                             android:textColor="@color/on_primary" />
 
-                        <Button
-                            android:id="@+id/btnOpenAccessibilitySettings"
+        <Button
+            android:id="@+id/btnOpenAccessibilitySettings"
                             style="@style/Widget.TestAutoJs.Button"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:background="@drawable/button_primary_ripple"
                             android:text="打开设置"
                             android:textColor="@color/on_primary" />
 
-                    </LinearLayout>
+    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -251,34 +251,34 @@
                             android:lineSpacingExtra="4dp" />
                     </com.google.android.material.card.MaterialCardView>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <Button
-                            android:id="@+id/btnRefreshVpn"
+        <Button
+            android:id="@+id/btnRefreshVpn"
                             style="@style/Widget.TestAutoJs.Button"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="8dp"
                             android:background="@drawable/button_primary_ripple"
                             android:text="刷新状态"
                             android:textColor="@color/on_primary" />
 
-                        <Button
-                            android:id="@+id/btnOpenVpnSettings"
+        <Button
+            android:id="@+id/btnOpenVpnSettings"
                             style="@style/Widget.TestAutoJs.Button"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:background="@drawable/button_primary_ripple"
                             android:text="打开设置"
                             android:textColor="@color/on_primary" />
 
-                    </LinearLayout>
+    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -395,6 +395,234 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Recent Tasks 卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Recent Tasks"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvRecentTasks"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 Recent Tasks"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnRefreshRecentTasks"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新 Recent Tasks"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Root 工具日志检测卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Root 工具日志检测"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvRootDetection"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮开始检测"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnRefreshRootDetection"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="检测 Root 工具日志"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- VBmeta Digest 卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="VBmeta Digest"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvVbmetaDigest"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 ro.boot.vbmeta.digest"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnRefreshVbmetaDigest"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新 VBmeta Digest"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Key Attestation 卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Key Attestation"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvKeyAttestation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="点击按钮获取 Key Attestation 信息"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnRefreshKeyAttestation"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="刷新 Key Attestation"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- 应用列表卡片 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -419,9 +647,9 @@
                         android:textColor="@color/on_surface"
                         android:layout_marginBottom="12dp" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerView"
-                        android:layout_width="match_parent"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:minHeight="400dp"
                         android:maxHeight="600dp"
@@ -431,7 +659,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-        </LinearLayout>
+</LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

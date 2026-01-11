@@ -2,6 +2,7 @@ package com.example.testauto
 
 import android.R.attr.value
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.ActivityManager
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -55,6 +56,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var tvAccessibilityServices: android.widget.TextView
     private lateinit var tvVpnStatus: android.widget.TextView
     private lateinit var tvLockScreenStatus: android.widget.TextView
+    private lateinit var tvRecentTasks: android.widget.TextView
+    private lateinit var tvRootDetection: android.widget.TextView
+    private lateinit var tvVbmetaDigest: android.widget.TextView
+    private lateinit var tvKeyAttestation: android.widget.TextView
     private var dataList = ArrayList<ListItem>()
     private var isLoading = false
     private val visibleThreshold = 5
@@ -71,11 +76,11 @@ class MainActivity : ComponentActivity() {
 
         // 将耗时操作移到后台线程执行，避免阻塞主线程
         Thread {
-            // 获取并打印应用列表（优先执行）
-            getInstalledApps()
-            
-            // 简单测试应用列表获取
-            testGetApps()
+        // 获取并打印应用列表（优先执行）
+        getInstalledApps()
+        
+        // 简单测试应用列表获取
+        testGetApps()
             
             // 获取并打印 vendor.gsm.serial
             getAndPrintVendorGsmSerial()
@@ -91,6 +96,10 @@ class MainActivity : ComponentActivity() {
         tvAccessibilityServices = findViewById(R.id.tvAccessibilityServices)
         tvVpnStatus = findViewById(R.id.tvVpnStatus)
         tvLockScreenStatus = findViewById(R.id.tvLockScreenStatus)
+        tvRecentTasks = findViewById(R.id.tvRecentTasks)
+        tvRootDetection = findViewById(R.id.tvRootDetection)
+        tvVbmetaDigest = findViewById(R.id.tvVbmetaDigest)
+        tvKeyAttestation = findViewById(R.id.tvKeyAttestation)
 
         // 设置按钮点击事件
         setupButtons()
@@ -200,6 +209,22 @@ class MainActivity : ComponentActivity() {
         findViewById<android.widget.Button>(R.id.btnRefreshLockScreen).setOnClickListener {
             refreshLockScreenStatus()
         }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshRecentTasks).setOnClickListener {
+            refreshRecentTasks()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshRootDetection).setOnClickListener {
+            refreshRootDetection()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshVbmetaDigest).setOnClickListener {
+            refreshVbmetaDigest()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshKeyAttestation).setOnClickListener {
+            refreshKeyAttestation()
+        }
     }
 
     private fun openAccessibilitySettings() {
@@ -254,7 +279,7 @@ class MainActivity : ComponentActivity() {
             // 刷新无障碍服务
             refreshAccessibilityServicesAsync()
             
-            // 刷新VPN状态
+        // 刷新VPN状态
             refreshVpnStatusAsync()
             
             // 刷新锁屏状态
@@ -262,6 +287,18 @@ class MainActivity : ComponentActivity() {
             
             // 刷新IMEI（最耗时）
             refreshImeiAsync()
+            
+            // 刷新 Recent Tasks
+            refreshRecentTasksAsync()
+            
+            // 刷新 Root 工具检测
+            refreshRootDetectionAsync()
+            
+            // 刷新 VBmeta Digest
+            refreshVbmetaDigestAsync()
+            
+            // 刷新 Key Attestation
+            refreshKeyAttestationAsync()
         }.start()
     }
 
@@ -779,7 +816,7 @@ class MainActivity : ComponentActivity() {
                         break
                     }
                 }
-            } else {
+        } else {
                 Log.d("MainActivity", "通过主属性获取IMEI(slot=$slot) 成功: $imei")
             }
 
@@ -821,8 +858,8 @@ class MainActivity : ComponentActivity() {
             if (value.isEmpty()) {
                 // 如果反射失败，尝试通过getprop命令
                 value = getSystemPropertyViaGetprop(key)
-            }
-            
+    }
+
             if (value.isNotEmpty() && value != "unknown" && value != "null") {
                 propertiesInfo.append("$key: $value\n")
                 foundAny = true
@@ -966,8 +1003,8 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (e: Exception) {
                 // 忽略MEID获取错误
-            }
-            
+        }
+
             // 获取设备序列号
             try {
                 val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1028,22 +1065,34 @@ class MainActivity : ComponentActivity() {
         // 异步刷新所有卡片显示
         refreshAllDataAsync()
         
+        // 刷新 Recent Tasks
+        refreshRecentTasks()
+
+        // 刷新 Root 工具检测
+        refreshRootDetection()
+        
+        // 刷新 VBmeta Digest
+        refreshVbmetaDigest()
+        
+        // 刷新 Key Attestation
+        refreshKeyAttestation()
+        
         // 应用列表加载是耗时操作，移到后台线程
         dataList.clear()
         dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
         dataList.add(ListItem("正在加载应用列表...", ItemType.APP_LIST))
         adapter.notifyDataSetChanged()
-        
+
         // 在后台线程加载应用列表
         Thread {
             try {
-                val apps = getAppListForDisplay()
+        val apps = getAppListForDisplay()
                 // 在主线程更新UI
                 runOnUiThread {
                     dataList.clear()
                     dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-                    dataList.addAll(apps)
-                    adapter.notifyDataSetChanged()
+        dataList.addAll(apps)
+        adapter.notifyDataSetChanged()
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "加载应用列表失败", e)
@@ -1357,12 +1406,471 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainActivity", "=== vendor.gsm.serial ===")
                 Log.d("MainActivity", "vendor.gsm.serial: $vendorGsmSerial")
                 Log.d("MainActivity", "========================")
-            } else {
+        } else {
                 Log.d("MainActivity", "vendor.gsm.serial: 未获取到值或为空")
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "获取 vendor.gsm.serial 失败: ${e.message}", e)
         }
+    }
+
+    /**
+     * 获取 Recent Tasks 中的包名
+     */
+    private fun getRecentTasksPackages(): List<String> {
+        val packageNames = mutableListOf<String>()
+        
+        try {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            
+            // 方法1: 尝试使用反射调用 getRunningTasks() (Android 5.0+ 已废弃，但可能仍可用)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                @Suppress("DEPRECATION")
+                val runningTasks = activityManager.getRunningTasks(20)
+                for (taskInfo in runningTasks) {
+                    val packageName = taskInfo.topActivity?.packageName
+                    if (packageName != null && !packageNames.contains(packageName)) {
+                        packageNames.add(packageName)
+                    }
+                }
+            } else {
+                // Android 5.0+ 尝试通过反射调用
+                try {
+                    val getRunningTasksMethod = ActivityManager::class.java.getMethod(
+                        "getRunningTasks",
+                        Int::class.javaPrimitiveType
+                    )
+                    @Suppress("UNCHECKED_CAST")
+                    val runningTasks = getRunningTasksMethod.invoke(activityManager, 20) as? List<*>
+                    runningTasks?.forEach { taskInfo ->
+                        try {
+                            val topActivityField = taskInfo?.javaClass?.getDeclaredField("topActivity")
+                            topActivityField?.isAccessible = true
+                            val topActivity = topActivityField?.get(taskInfo) as? android.content.ComponentName
+                            val packageName = topActivity?.packageName
+                            if (packageName != null && !packageNames.contains(packageName)) {
+                                packageNames.add(packageName)
+                            }
+                        } catch (e: Exception) {
+                            Log.d("MainActivity", "反射获取 taskInfo 失败: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d("MainActivity", "反射调用 getRunningTasks 失败: ${e.message}")
+                }
+            }
+            
+            // 方法2: 使用 UsageStatsManager 获取最近使用的应用（需要 PACKAGE_USAGE_STATS 权限）
+            if (packageNames.isEmpty()) {
+                try {
+                    val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                    val currentTime = System.currentTimeMillis()
+                    val timeRange = 1000 * 60 * 60 * 24 // 最近24小时
+                    
+                    val stats = usageStatsManager.queryUsageStats(
+                        UsageStatsManager.INTERVAL_DAILY,
+                        currentTime - timeRange,
+                        currentTime
+                    )
+                    
+                    // 按最后使用时间排序
+                    val sortedStats = stats.sortedByDescending { it.lastTimeUsed }
+                    
+                    for (usageStats in sortedStats.take(20)) {
+                        val packageName = usageStats.packageName
+                        if (packageName != null && !packageNames.contains(packageName)) {
+                            packageNames.add(packageName)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d("MainActivity", "使用 UsageStatsManager 获取失败: ${e.message}")
+                }
+            }
+            
+            // 方法3: 尝试使用 getAppTasks() (只能获取当前应用的)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    val appTasks = activityManager.appTasks
+                    for (appTask in appTasks) {
+                        val taskInfo = appTask.taskInfo
+                        val packageName = taskInfo.topActivity?.packageName
+                        if (packageName != null && !packageNames.contains(packageName)) {
+                            packageNames.add(packageName)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d("MainActivity", "使用 getAppTasks 获取失败: ${e.message}")
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取 Recent Tasks 失败: ${e.message}", e)
+        }
+        
+        return packageNames
+    }
+    
+    /**
+     * 刷新 Recent Tasks 显示（异步版本）
+     */
+    private fun refreshRecentTasksAsync() {
+        Thread {
+            val recentTasksInfo = StringBuilder()
+            recentTasksInfo.append("=== Recent Tasks 包名列表 ===\n\n")
+            
+            try {
+                val packageNames = getRecentTasksPackages()
+                
+                if (packageNames.isEmpty()) {
+                    recentTasksInfo.append("未获取到 Recent Tasks 信息\n")
+                    recentTasksInfo.append("提示：可能需要 PACKAGE_USAGE_STATS 权限")
+                } else {
+                    recentTasksInfo.append("共找到 ${packageNames.size} 个包名：\n\n")
+                    
+                    for ((index, packageName) in packageNames.withIndex()) {
+                        // 尝试获取应用名称
+                        val appName = try {
+                            val packageManager = packageManager
+                            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+                            packageManager.getApplicationLabel(appInfo).toString()
+                        } catch (e: Exception) {
+                            "未知应用"
+                        }
+                        
+                        recentTasksInfo.append("${index + 1}. $appName\n")
+                        recentTasksInfo.append("   包名: $packageName\n\n")
+                    }
+                }
+            } catch (e: Exception) {
+                recentTasksInfo.append("获取失败: ${e.message}")
+                Log.e("MainActivity", "刷新 Recent Tasks 失败", e)
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvRecentTasks.text = recentTasksInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新 Recent Tasks 显示（同步版本，用于按钮点击）
+     */
+    private fun refreshRecentTasks() {
+        refreshRecentTasksAsync()
+    }
+
+    /**
+     * Root 工具日志检测
+     * 参考 ZN-AuditPatch 项目，检测日志中是否包含敏感 SELinux 上下文
+     */
+    data class RootToolDetectionResult(
+        val toolName: String,
+        val detected: Boolean,
+        val context: String,
+        val logLines: List<String> = emptyList()
+    )
+
+    /**
+     * 敏感的 SELinux 上下文关键词（参考 hook.cpp）
+     */
+    private val sensitiveContexts = mapOf(
+        "Magisk" to listOf("u:r:magisk:s0", "magisk", "magisk"),
+        "Zygisk" to listOf("u:r:zygisk:s0", "zygisk", "zygisk"),
+        "KernelSU" to listOf("u:r:kernelsu:s0", "kernelsu", "KernelSU"),
+        "APatch" to listOf("u:r:apatch:s0", "apatch", "apatch"),
+        "SuperSU" to listOf("u:r:su:s0", "superuser", "SuperSU")
+    )
+
+    /**
+     * 读取 logcat 日志并检测敏感上下文
+     * 使用 grep 直接过滤日志，更可靠
+     */
+    private fun detectRootToolsFromLogs(): List<RootToolDetectionResult> {
+        val results = mutableListOf<RootToolDetectionResult>()
+        
+        // 对每个敏感上下文进行检测
+        for ((toolName, keywords) in sensitiveContexts) {
+            val matchedLines = mutableListOf<String>()
+            var detected = false
+            var matchedContext = ""
+            
+            // 对每个关键词使用 grep 搜索
+            for (keyword in keywords) {
+                try {
+                    // 使用 sh -c 执行管道命令，确保 grep 能正常工作
+                    // -i 表示忽略大小写，-m 限制匹配数量为10条
+                    val command = arrayOf("sh", "-c", "logcat -d | grep -i -m 10 '$keyword'")
+                    val process = Runtime.getRuntime().exec(command)
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    
+                    var line: String?
+                    var hasMatch = false
+                    while (reader.readLine().also { line = it } != null) {
+                        line?.let { 
+                            if (it.isNotEmpty() && it.contains(keyword, ignoreCase = true)) {
+                                hasMatch = true
+                                detected = true
+                                matchedContext = keyword
+                                matchedLines.add(it)
+        }
+                        }
+                    }
+                    reader.close()
+                    
+                    // 读取错误流，避免进程阻塞
+                    val errorReader = BufferedReader(InputStreamReader(process.errorStream))
+                    val errorOutput = StringBuilder()
+                    while (errorReader.readLine() != null) {
+                        // 忽略错误输出
+                    }
+                    errorReader.close()
+                    
+                    val exitCode = process.waitFor()
+                    process.destroy()
+                    
+                    // 如果已经检测到，就不需要继续检测其他关键词
+                    if (detected) {
+                        Log.d("MainActivity", "检测到 ${toolName}: $keyword (退出码: $exitCode)")
+                        break
+                    }
+                } catch (e: SecurityException) {
+                    Log.d("MainActivity", "读取日志权限不足 (${toolName}/$keyword): ${e.message}")
+                    // 权限不足时继续尝试其他关键词
+                } catch (e: Exception) {
+                    Log.d("MainActivity", "grep 搜索失败 (${toolName}/$keyword): ${e.message}")
+                    // 搜索失败时继续尝试其他关键词
+                }
+            }
+            
+            results.add(
+                RootToolDetectionResult(
+                    toolName = toolName,
+                    detected = detected,
+                    context = matchedContext,
+                    logLines = matchedLines.take(5) // 只保留前5条匹配的日志
+                )
+            )
+        }
+        
+        // 如果所有检测都失败，可能是权限问题
+        val allFailed = results.all { !it.detected }
+        if (allFailed) {
+            // 尝试一个简单的测试，看看是否能读取日志
+            try {
+                val testProcess = Runtime.getRuntime().exec("logcat -d -t 1")
+                val testReader = BufferedReader(InputStreamReader(testProcess.inputStream))
+                val testLine = testReader.readLine()
+                testReader.close()
+                testProcess.destroy()
+                
+                if (testLine == null || testLine.isEmpty()) {
+                    Log.w("MainActivity", "无法读取日志，可能是权限不足或日志为空")
+                }
+            } catch (e: Exception) {
+                Log.w("MainActivity", "日志读取测试失败: ${e.message}")
+            }
+        }
+        
+        return results
+    }
+
+    /**
+     * 刷新 Root 工具检测显示（异步版本）
+     */
+    private fun refreshRootDetectionAsync() {
+        Thread {
+            val detectionInfo = StringBuilder()
+            detectionInfo.append("=== Root 工具日志检测 ===\n\n")
+            detectionInfo.append("检测逻辑说明：\n")
+            detectionInfo.append("1. 使用 logcat -d 读取系统日志\n")
+            detectionInfo.append("2. 使用 grep 直接过滤敏感关键词\n")
+            detectionInfo.append("3. 检测敏感 SELinux 上下文关键词\n")
+            detectionInfo.append("4. 参考 ZN-AuditPatch 项目的检测机制\n\n")
+            detectionInfo.append("敏感上下文列表：\n")
+            for ((toolName, keywords) in sensitiveContexts) {
+                detectionInfo.append("• $toolName: ${keywords.joinToString(", ")}\n")
+            }
+            detectionInfo.append("\n")
+            detectionInfo.append("=".repeat(50)).append("\n\n")
+            
+            try {
+                val results = detectRootToolsFromLogs()
+                
+                var detectedCount = 0
+                for (result in results) {
+                    if (result.detected) {
+                        detectedCount++
+                        detectionInfo.append("⚠️ 检测到: ${result.toolName}\n")
+                        detectionInfo.append("   匹配上下文: ${result.context}\n")
+                        detectionInfo.append("   匹配日志条数: ${result.logLines.size}\n")
+                        
+                        if (result.logLines.isNotEmpty()) {
+                            detectionInfo.append("   示例日志（前3条）：\n")
+                            for ((index, logLine) in result.logLines.take(3).withIndex()) {
+                                val truncatedLine = if (logLine.length > 100) {
+                                    logLine.substring(0, 100) + "..."
+                                } else {
+                                    logLine
+                                }
+                                detectionInfo.append("     ${index + 1}. $truncatedLine\n")
+                            }
+                        }
+                        detectionInfo.append("\n")
+                    } else {
+                        detectionInfo.append("✓ 未检测到: ${result.toolName}\n")
+                    }
+                }
+                
+                detectionInfo.append("\n")
+                detectionInfo.append("=".repeat(50)).append("\n")
+                detectionInfo.append("检测结果汇总：\n")
+                detectionInfo.append("• 总计检测工具数: ${results.size}\n")
+                detectionInfo.append("• 检测到可疑工具数: $detectedCount\n")
+                
+                if (detectedCount > 0) {
+                    detectionInfo.append("• 状态: ⚠️ 发现可疑 Root 工具痕迹\n")
+                    detectionInfo.append("\n注意：如果安装了 ZN-AuditPatch 等日志过滤模块，\n")
+                    detectionInfo.append("这些日志可能已被过滤，检测结果可能不准确。")
+                } else {
+                    detectionInfo.append("• 状态: ✓ 未发现明显的 Root 工具痕迹\n")
+                    detectionInfo.append("\n注意：未检测到不代表设备未 Root，\n")
+                    detectionInfo.append("可能使用了日志过滤技术隐藏痕迹。")
+                }
+                
+            } catch (e: Exception) {
+                detectionInfo.append("检测过程出错: ${e.message}\n")
+                detectionInfo.append("错误类型: ${e.javaClass.simpleName}\n")
+                Log.e("MainActivity", "Root 工具检测失败", e)
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvRootDetection.text = detectionInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新 Root 工具检测显示（同步版本，用于按钮点击）
+     */
+    private fun refreshRootDetection() {
+        refreshRootDetectionAsync()
+    }
+
+    /**
+     * 获取 ro.boot.vbmeta.digest 系统属性
+     */
+    private fun getVbmetaDigest(): String {
+        return try {
+            // 方法1: 通过 SystemPropertyUtil 获取
+            var digest = SystemPropertyUtil.getSystemProperty("ro.boot.vbmeta.digest")
+            if (digest.isEmpty()) {
+                digest = SystemPropertyUtil.getSystemPropertyViaGetprop("ro.boot.vbmeta.digest")
+            }
+            digest
+        } catch (e: Exception) {
+            Log.e("MainActivity", "获取 ro.boot.vbmeta.digest 失败: ${e.message}", e)
+            ""
+        }
+    }
+
+    /**
+     * 刷新 VBmeta Digest 显示（异步版本）
+     */
+    private fun refreshVbmetaDigestAsync() {
+        Thread {
+            val digestInfo = StringBuilder()
+            
+            // 从 Props 获取
+            val vbmetaFromProps = getVbmetaDigest()
+            digestInfo.append("来自 Props:\n")
+            if (vbmetaFromProps.isNotEmpty()) {
+                digestInfo.append("$vbmetaFromProps\n")
+            } else {
+                digestInfo.append("未获取到\n")
+            }
+            
+            digestInfo.append("\n")
+            
+            // 从 Key Attestation 获取
+            digestInfo.append("来自 Key Attestation:\n")
+            try {
+                val vbmetaFromAttestation = VbmetaDigestAttestation.getVbmetaDigestHex()
+                if (vbmetaFromAttestation != null && vbmetaFromAttestation.isNotEmpty()) {
+                    digestInfo.append("$vbmetaFromAttestation\n")
+                } else {
+                    digestInfo.append("未获取到\n")
+                }
+            } catch (e: Exception) {
+                digestInfo.append("获取失败: ${e.message}\n")
+                Log.e("MainActivity", "从 Key Attestation 获取 vbmetaDigest 失败", e)
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvVbmetaDigest.text = digestInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新 VBmeta Digest 显示（同步版本，用于按钮点击）
+     */
+    private fun refreshVbmetaDigest() {
+        refreshVbmetaDigestAsync()
+    }
+
+    /**
+     * 刷新 Key Attestation 信息显示（异步版本）
+     */
+    private fun refreshKeyAttestationAsync() {
+        Thread {
+            val attestationInfo = StringBuilder()
+            attestationInfo.append("流程说明:\n")
+            attestationInfo.append("App → KeyStore → TEE/StrongBox → \n")
+            attestationInfo.append("Bootloader/AVB → Certificate Chain → \n")
+            attestationInfo.append("解析 vbmetaDigest\n\n")
+            
+            attestationInfo.append("=".repeat(40)).append("\n\n")
+            
+            // 从 Props 获取
+            val vbmetaFromProps = getVbmetaDigest()
+            attestationInfo.append("来自 Props:\n")
+            if (vbmetaFromProps.isNotEmpty()) {
+                attestationInfo.append("$vbmetaFromProps\n")
+            } else {
+                attestationInfo.append("未获取到\n")
+            }
+            
+            attestationInfo.append("\n")
+            
+            // 从 Key Attestation 获取
+            attestationInfo.append("来自 Key Attestation:\n")
+            try {
+                val vbmetaFromAttestation = VbmetaDigestAttestation.getVbmetaDigestHex()
+                if (vbmetaFromAttestation != null && vbmetaFromAttestation.isNotEmpty()) {
+                    attestationInfo.append("$vbmetaFromAttestation\n")
+                } else {
+                    attestationInfo.append("未获取到\n")
+                }
+            } catch (e: Exception) {
+                attestationInfo.append("获取失败: ${e.message}\n")
+                Log.e("MainActivity", "从 Key Attestation 获取 vbmetaDigest 失败", e)
+            }
+            
+            // 在主线程更新UI
+            runOnUiThread {
+                tvKeyAttestation.text = attestationInfo.toString().trim()
+            }
+        }.start()
+    }
+    
+    /**
+     * 刷新 Key Attestation 信息显示（同步版本，用于按钮点击）
+     */
+    private fun refreshKeyAttestation() {
+        refreshKeyAttestationAsync()
     }
 
     private fun testAdbProcess(){
