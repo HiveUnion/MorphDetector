@@ -48,6 +48,12 @@
             android:label="SAF 包名列表"
             android:theme="@style/Theme.TestAutoJs" />
 
+        <activity
+            android:name=".AppListActivity"
+            android:exported="false"
+            android:label="应用列表"
+            android:theme="@style/Theme.TestAutoJs" />
+
         <!-- LSPosed 模块元数据 -->
         <meta-data
             android:name="xposedmodule"
@@ -61,6 +67,10 @@
         <meta-data
             android:name="xposedentry"
             android:value="com.example.testauto.lsposed.MainHook" />
+        <!-- LSPosed 默认作用域：默认勾选 com.android.providers.media.module -->
+        <meta-data
+            android:name="xposedscope"
+            android:value='["com.android.providers.media.module"]' />
     </application>
 
 </manifest>

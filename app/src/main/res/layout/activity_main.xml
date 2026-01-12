@@ -661,12 +661,15 @@
 
             <!-- 应用列表卡片 -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAppList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="2dp"
-                app:strokeWidth="0dp">
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -681,17 +684,14 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/on_surface"
-                        android:layout_marginBottom="12dp" />
+                        android:layout_marginBottom="8dp" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="400dp"
-                        android:maxHeight="600dp"
-                        android:padding="8dp"
-                        android:clipToPadding="false"
-                        android:nestedScrollingEnabled="false" />
+                        android:text="查看所有已安装的应用"
+                        android:textSize="14sp"
+                        android:textColor="@color/on_surface_variant" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

@@ -24,8 +24,6 @@ import android.view.MotionEvent
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import java.util.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -49,8 +47,6 @@ enum class ItemType {
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: InfiniteScrollAdapter
     private lateinit var tvImei: android.widget.TextView
     private lateinit var tvBootId: android.widget.TextView
     private lateinit var tvDeviceIds: android.widget.TextView
@@ -61,9 +57,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var tvRootDetection: android.widget.TextView
     private lateinit var tvVbmetaDigest: android.widget.TextView
     private lateinit var tvKeyAttestation: android.widget.TextView
-    private var dataList = ArrayList<ListItem>()
-    private var isLoading = false
-    private val visibleThreshold = 5
     
     companion object {
         private const val PERMISSION_REQUEST_CODE_READ_PHONE_STATE = 1001
@@ -94,9 +87,6 @@ class MainActivity : ComponentActivity() {
             }.start()
         }, 500) // 延迟500ms执行
 
-        // 初始化 RecyclerView
-        setupRecyclerView()
-
         // 初始化所有 TextView
         tvImei = findViewById(R.id.tvImei)
         tvBootId = findViewById(R.id.tvBootId)
@@ -114,12 +104,12 @@ class MainActivity : ComponentActivity() {
         
         // 设置 SAF 包名列表卡片点击事件
         setupSafPackageListCard()
+        
+        // 设置应用列表卡片点击事件
+        setupAppListCard()
 
         // 检查并请求权限
         checkAndRequestPhoneStatePermission()
-        
-        // 加载初始数据（包括无障碍服务）- 延迟执行避免阻塞
-        postDelayed({ loadInitialData() }, 200)
         
         // 检测 AutoJs 操作 - 延迟执行避免阻塞
         postDelayed({ detectAutoJsOperation() }, 500)
@@ -190,6 +180,17 @@ class MainActivity : ComponentActivity() {
         findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSafPackageList)
             .setOnClickListener {
                 val intent = Intent(this, SafPackageListActivity::class.java)
+                startActivity(intent)
+            }
+    }
+
+    /**
+     * 设置应用列表卡片点击事件
+     */
+    private fun setupAppListCard() {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardAppList)
+            .setOnClickListener {
+                val intent = Intent(this, AppListActivity::class.java)
                 startActivity(intent)
             }
     }
@@ -1106,77 +1107,6 @@ class MainActivity : ComponentActivity() {
         refreshImeiAsync()
     }
 
-    /**
-     * 加载初始数据
-     */
-    private fun loadInitialData() {
-        // 异步刷新所有卡片显示（已经包含了所有刷新操作，避免重复调用）
-        refreshAllDataAsync()
-
-        // 应用列表加载是耗时操作，移到后台线程
-        runOnUiThread {
-            dataList.clear()
-            dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-            dataList.add(ListItem("正在加载应用列表...", ItemType.APP_LIST))
-            adapter.notifyDataSetChanged()
-        }
-
-        // 在后台线程加载应用列表
-        Thread {
-            try {
-                val apps = getAppListForDisplay()
-                // 在主线程更新UI
-                runOnUiThread {
-                    dataList.clear()
-                    dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-                    dataList.addAll(apps)
-                    adapter.notifyDataSetChanged()
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "加载应用列表失败", e)
-                runOnUiThread {
-                    dataList.clear()
-                    dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-                    dataList.add(ListItem("加载应用列表失败: ${e.message}", ItemType.APP_LIST))
-                    adapter.notifyDataSetChanged()
-                }
-            }
-        }.start()
-    }
-
-    /**
-     * 获取应用列表用于显示
-     */
-    private fun getAppListForDisplay(): List<ListItem> {
-        val appItems = ArrayList<ListItem>()
-        
-        try {
-            val packageManager = packageManager
-            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN, null)
-            intent.addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-            
-            val resolveInfoList = packageManager.queryIntentActivities(intent, 0)
-            
-            // 只显示前20个应用
-            val appsToShow = resolveInfoList.take(20)
-            for (resolveInfo in appsToShow) {
-                val appName = resolveInfo.loadLabel(packageManager).toString()
-                val packageName = resolveInfo.activityInfo.packageName
-                
-                val itemText = "$appName\n包名: $packageName"
-                appItems.add(ListItem(itemText, ItemType.APP_LIST))
-            }
-            
-            if (resolveInfoList.size > 20) {
-                appItems.add(ListItem("... 还有 ${resolveInfoList.size - 20} 个应用", ItemType.APP_LIST))
-            }
-            
-        } catch (e: Exception) {
-            appItems.add(ListItem("获取应用列表失败: ${e.message}", ItemType.APP_LIST))
-        }
-        
-        return appItems
-    }
 
     /**
      * 刷新无障碍服务信息（异步版本）
@@ -1915,46 +1845,6 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    private fun setupRecyclerView() {
-        recyclerView = findViewById(R.id.recyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = InfiniteScrollAdapter(dataList)
-        recyclerView.adapter = adapter
-        // 优化 RecyclerView 性能
-        recyclerView.setHasFixedSize(true)
-        recyclerView.itemAnimator = null // 禁用动画以提高性能
-
-        // 设置滚动监听器，实现无限加载功能
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-
-                val linearLayoutManager = recyclerView.layoutManager as LinearLayoutManager
-                val totalItemCount = linearLayoutManager.itemCount
-                val lastVisibleItem = linearLayoutManager.findLastVisibleItemPosition()
-
-                if (!isLoading && totalItemCount <= (lastVisibleItem + visibleThreshold)) {
-                    // 加载更多数据
-                    loadData()
-                    isLoading = true
-                }
-            }
-        })
-    }
-
-    private fun loadData() {
-        // 模拟数据加载延迟
-        recyclerView.postDelayed({
-            val start = dataList.size
-            val end = start + 20
-
-            for (i in start until end) {
-                dataList.add(ListItem("Item $i", ItemType.APP_LIST))
-            }
-            adapter.notifyDataSetChanged()
-            isLoading = false
-        }, 1500)
-    }
 
     private fun detectAutoJsOperation() {
         // 移到后台线程执行，避免阻塞主线程

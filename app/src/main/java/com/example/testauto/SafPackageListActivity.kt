@@ -9,6 +9,11 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.ArrayList
 
 /**
@@ -24,8 +29,11 @@ class SafPackageListActivity : AppCompatActivity() {
         // 零宽字符集合
         private val ZERO_WIDTH_CHARS = arrayOf(
             "\u200B", // 零宽空格
+            "\u200b", // 零宽空格
             "\u200C", // 零宽非连接符
+            "\u200c", // 零宽非连接符
             "\u200D", // 零宽连接符
+            "\u200d", // 零宽连接符
             "\uFEFF"  // 零宽无断空格
         )
     }
@@ -73,7 +81,7 @@ class SafPackageListActivity : AppCompatActivity() {
             val targetDir = "data"
             
             // 使用零宽字符构建路径来绕过过滤
-            val pathWithZeroWidth = "$basePath/\u200D$targetDir"  // 在路径中插入零宽连接符
+            val pathWithZeroWidth = "$basePath/\u200d$targetDir"  // 在路径中插入零宽连接符
             
             val file = java.io.File(pathWithZeroWidth)
             if (file.exists() && file.isDirectory) {
@@ -123,7 +131,7 @@ class SafPackageListActivity : AppCompatActivity() {
     }
     
     /**
-     * 从 File 对象列出包名
+     * 从 File 对象列出包名 - 展示四种不同的方法
      */
     private fun listPackagesFromFile(directory: java.io.File) {
         if (!directory.exists() || !directory.isDirectory) {
@@ -131,80 +139,211 @@ class SafPackageListActivity : AppCompatActivity() {
             return
         }
 
-        val packageList = ArrayList<String>()
         val resultBuilder = StringBuilder()
-        resultBuilder.append("开始扫描包名...\n\n")
+        resultBuilder.append("开始扫描包名...\n")
+        resultBuilder.append("目录: ${directory.absolutePath}\n\n")
 
         try {
-            val files = directory.listFiles()
-            if (files == null) {
-                tvResult.text = "错误: 无法读取目录内容"
-                return
+            // 方法1: File.listFiles()
+            val listFilesResult = getPackagesByListFiles(directory)
+            resultBuilder.append("=== 方法1: File.listFiles() ===\n")
+            resultBuilder.append("找到 ${listFilesResult.size} 个目录:\n")
+            listFilesResult.forEachIndexed { index, name ->
+                resultBuilder.append("  ${index + 1}. $name\n")
             }
-            
-            resultBuilder.append("找到 ${files.size} 个项目\n\n")
+            resultBuilder.append("\n")
 
-            // 方法1: 直接遍历
-            for (file in files) {
-                if (file.isDirectory) {
-                    val packageName = file.name
-                    if (packageName.isNotEmpty()) {
-                        val cleanPackageName = removeZeroWidthChars(packageName)
-                        if (cleanPackageName.isNotEmpty() && !packageList.contains(cleanPackageName)) {
-                            packageList.add(cleanPackageName)
-                            Log.i(TAG, "Package (direct): $cleanPackageName")
-                            resultBuilder.append("  ✓ [直接] $cleanPackageName\n")
-                        }
-                    }
-                }
+            // 方法2: File.list()
+            val listResult = getPackagesByList(directory)
+            resultBuilder.append("=== 方法2: File.list() ===\n")
+            resultBuilder.append("找到 ${listResult.size} 个目录:\n")
+            listResult.forEachIndexed { index, name ->
+                resultBuilder.append("  ${index + 1}. $name\n")
             }
-            
-            // 方法2: 使用零宽字符技术绕过过滤
-            // 尝试通过修改文件名来访问可能被过滤的目录
-            ZERO_WIDTH_CHARS.forEach { zeroWidthChar ->
-                try {
-                    files.forEach { file ->
-                        if (file.isDirectory) {
-                            val originalName = file.name
-                            // 尝试构建带零宽字符的路径
-                            val modifiedPath = "${directory.absolutePath}/$zeroWidthChar$originalName"
-                            val modifiedFile = java.io.File(modifiedPath)
-                            
-                            // 如果修改后的路径存在，说明可能绕过了过滤
-                            if (modifiedFile.exists() || file.exists()) {
-                                val cleanName = removeZeroWidthChars(originalName)
-                                if (cleanName.isNotEmpty() && !packageList.contains(cleanName)) {
-                                    packageList.add(cleanName)
-                                    Log.i(TAG, "Package (zero-width): $cleanName")
-                                    resultBuilder.append("  ✓ [零宽] $cleanName\n")
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.d(TAG, "Zero width char method failed for $zeroWidthChar: ${e.message}")
-                }
-            }
+            resultBuilder.append("\n")
 
-            resultBuilder.append("\n=== 扫描完成 ===\n")
-            resultBuilder.append("共找到 ${packageList.size} 个包:\n\n")
-            
-            if (packageList.isEmpty()) {
-                resultBuilder.append("未找到任何包目录\n")
-                resultBuilder.append("提示: 请确保目录包含包名文件夹\n")
+            // 方法3: Shell ls 命令
+            val shellLsResult = getPackagesByShellLs(directory)
+            resultBuilder.append("=== 方法3: Shell ls 命令 ===\n")
+            resultBuilder.append("找到 ${shellLsResult.size} 个目录:\n")
+            shellLsResult.forEachIndexed { index, name ->
+                resultBuilder.append("  ${index + 1}. $name\n")
+            }
+            resultBuilder.append("\n")
+
+            // 方法4: readdir() (JNI)
+            val readdirResult = getPackagesByReaddir(directory)
+            resultBuilder.append("=== 方法4: readdir() (JNI) ===\n")
+            if (readdirResult.isEmpty()) {
+                resultBuilder.append("需要 native 库支持，当前未实现\n")
             } else {
-                packageList.forEachIndexed { index, packageName ->
-                    resultBuilder.append("${index + 1}. $packageName\n")
+                resultBuilder.append("找到 ${readdirResult.size} 个目录:\n")
+                readdirResult.forEachIndexed { index, name ->
+                    resultBuilder.append("  ${index + 1}. $name\n")
                 }
             }
+            resultBuilder.append("\n")
+
+            resultBuilder.append("=== 汇总 ===\n")
+            val allPackages = mutableSetOf<String>()
+            allPackages.addAll(listFilesResult)
+            allPackages.addAll(listResult)
+            allPackages.addAll(shellLsResult)
+            allPackages.addAll(readdirResult)
+            resultBuilder.append("总共找到 ${allPackages.size} 个唯一包名\n")
 
             tvResult.text = resultBuilder.toString()
-            Log.i(TAG, "Found ${packageList.size} packages")
+            Log.i(TAG, "Found packages - listFiles: ${listFilesResult.size}, list: ${listResult.size}, ls: ${shellLsResult.size}, readdir: ${readdirResult.size}")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error listing packages from file", e)
             tvResult.text = "错误: ${e.message}\n\n${resultBuilder.toString()}"
         }
+    }
+
+    /**
+     * 方法1: 使用 File.listFiles() 获取包名列表
+     */
+    private fun getPackagesByListFiles(directory: java.io.File): List<String> {
+        val packageList = ArrayList<String>()
+        try {
+            val files = directory.listFiles()
+            if (files != null) {
+                for (file in files) {
+                    if (file.isDirectory) {
+                        val packageName = file.name
+                        if (packageName.isNotEmpty()) {
+                            val cleanPackageName = removeZeroWidthChars(packageName)
+                            if (cleanPackageName.isNotEmpty() && !packageList.contains(cleanPackageName)) {
+                                packageList.add(cleanPackageName)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getPackagesByListFiles", e)
+        }
+        return packageList
+    }
+
+    /**
+     * 方法2: 使用 File.list() 获取包名列表
+     */
+    private fun getPackagesByList(directory: java.io.File): List<String> {
+        val packageList = ArrayList<String>()
+        try {
+            val fileNames = directory.list()
+            if (fileNames != null) {
+                for (fileName in fileNames) {
+                    val file = java.io.File(directory, fileName)
+                    if (file.isDirectory) {
+                        val packageName = fileName
+                        if (packageName.isNotEmpty()) {
+                            val cleanPackageName = removeZeroWidthChars(packageName)
+                            if (cleanPackageName.isNotEmpty() && !packageList.contains(cleanPackageName)) {
+                                packageList.add(cleanPackageName)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getPackagesByList", e)
+        }
+        return packageList
+    }
+
+    /**
+     * 方法3: 使用 Shell ls 命令获取包名列表
+     */
+    private fun getPackagesByShellLs(directory: java.io.File): List<String> {
+        val packageList = ArrayList<String>()
+        try {
+            val directoryPath = directory.absolutePath
+            val command = arrayOf("sh", "-c", "ls -1 \"$directoryPath\"")
+            val process = Runtime.getRuntime().exec(command)
+            
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val errorReader = BufferedReader(InputStreamReader(process.errorStream))
+            
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                line?.let { fileName ->
+                    val file = java.io.File(directory, fileName)
+                    if (file.isDirectory) {
+                        val packageName = fileName
+                        if (packageName.isNotEmpty()) {
+                            val cleanPackageName = removeZeroWidthChars(packageName)
+                            if (cleanPackageName.isNotEmpty() && !packageList.contains(cleanPackageName)) {
+                                packageList.add(cleanPackageName)
+                            }
+                        }
+                    }
+                }
+            }
+            reader.close()
+            
+            // 读取错误流，避免进程阻塞
+            while (errorReader.readLine() != null) {
+                // 忽略错误输出
+            }
+            errorReader.close()
+            
+            process.waitFor()
+            process.destroy()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getPackagesByShellLs", e)
+        }
+        return packageList
+    }
+
+    /**
+     * 方法4: 使用 readdir() (JNI) 获取包名列表
+     * 注意：这需要 native 库支持，当前使用反射尝试调用
+     */
+    private fun getPackagesByReaddir(directory: java.io.File): List<String> {
+        val packageList = ArrayList<String>()
+        try {
+            // 尝试通过 JNI 调用 readdir()
+            // 由于需要 native 库，这里先尝试使用 Files.list() 作为替代
+            // 实际项目中需要实现 native 方法
+            
+            // 方法4a: 尝试使用 Java NIO Files.list() (底层可能使用 readdir)
+            try {
+                val path = Paths.get(directory.absolutePath)
+                Files.list(path).use { stream ->
+                    stream.forEach { pathItem ->
+                        val file = pathItem.toFile()
+                        if (file.isDirectory) {
+                            val packageName = file.name
+                            if (packageName.isNotEmpty()) {
+                                val cleanPackageName = removeZeroWidthChars(packageName)
+                                if (cleanPackageName.isNotEmpty() && !packageList.contains(cleanPackageName)) {
+                                    packageList.add(cleanPackageName)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Files.list() failed, trying alternative: ${e.message}")
+                
+                // 方法4b: 尝试通过反射调用 native 方法（如果存在）
+                // 注意：这只是一个占位符，实际需要实现 native 库
+                try {
+                    // 这里可以尝试加载 native 库并调用 readdir
+                    // System.loadLibrary("native-lib")
+                    // val result = nativeReaddir(directory.absolutePath)
+                    Log.d(TAG, "Native readdir() not implemented, using fallback")
+                } catch (e: Exception) {
+                    Log.d(TAG, "Native readdir() not available: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in getPackagesByReaddir", e)
+        }
+        return packageList
     }
 
     /**
