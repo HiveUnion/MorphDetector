@@ -16,6 +16,10 @@
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <!-- 读取日志权限（用于检测 root 工具日志） -->
     <uses-permission android:name="android.permission.READ_LOGS" />
+    <!-- 存储权限 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
 
     <application
         android:allowBackup="true"
@@ -37,6 +41,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".SafPackageListActivity"
+            android:exported="false"
+            android:label="SAF 包名列表"
+            android:theme="@style/Theme.TestAutoJs" />
+
+        <!-- LSPosed 模块元数据 -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="从文件系统列举中移除 com.hive.morph，修复 CVE-2024-43093 漏洞" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+        <meta-data
+            android:name="xposedentry"
+            android:value="com.example.testauto.lsposed.MainHook" />
     </application>
 
 </manifest>

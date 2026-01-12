@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/background">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="SAF 包名列表扫描"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/on_surface"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="使用 SAF (Storage Access Framework) 和零宽字符技术扫描包名"
+        android:textSize="14sp"
+        android:textColor="@color/on_surface_variant"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnSelectDirectory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="选择目录"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/button_primary"
+        android:textColor="@color/on_primary" />
+
+    <Button
+        android:id="@+id/btnListPackages"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="列表包名"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/button_primary"
+        android:textColor="@color/on_primary" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="结果:"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/on_surface"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/card_background"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tvResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="请先选择目录"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface"
+            android:fontFamily="monospace" />
+    </ScrollView>
+
+</LinearLayout>

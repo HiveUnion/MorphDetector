@@ -6,6 +6,7 @@ import android.app.ActivityManager
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -75,16 +76,23 @@ class MainActivity : ComponentActivity() {
         setContentView(R.layout.activity_main)
 
         // 将耗时操作移到后台线程执行，避免阻塞主线程
-        Thread {
-        // 获取并打印应用列表（优先执行）
-        getInstalledApps()
-        
-        // 简单测试应用列表获取
-        testGetApps()
-            
-            // 获取并打印 vendor.gsm.serial
-            getAndPrintVendorGsmSerial()
-        }.start()
+        // 延迟执行，避免影响界面加载
+        postDelayed({
+            Thread {
+                try {
+                    // 获取并打印应用列表（优先执行）
+                    getInstalledApps()
+                    
+                    // 简单测试应用列表获取
+                    testGetApps()
+                    
+                    // 获取并打印 vendor.gsm.serial
+                    getAndPrintVendorGsmSerial()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "后台任务执行失败", e)
+                }
+            }.start()
+        }, 500) // 延迟500ms执行
 
         // 初始化 RecyclerView
         setupRecyclerView()
@@ -103,15 +111,18 @@ class MainActivity : ComponentActivity() {
 
         // 设置按钮点击事件
         setupButtons()
-
-        // 加载初始数据（包括无障碍服务）
-        loadInitialData()
-
-        // 检测 AutoJs 操作
-        detectAutoJsOperation()
         
+        // 设置 SAF 包名列表卡片点击事件
+        setupSafPackageListCard()
+
         // 检查并请求权限
         checkAndRequestPhoneStatePermission()
+        
+        // 加载初始数据（包括无障碍服务）- 延迟执行避免阻塞
+        postDelayed({ loadInitialData() }, 200)
+        
+        // 检测 AutoJs 操作 - 延迟执行避免阻塞
+        postDelayed({ detectAutoJsOperation() }, 500)
     }
 
     /**
@@ -170,6 +181,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * 设置 SAF 包名列表卡片点击事件
+     */
+    private fun setupSafPackageListCard() {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSafPackageList)
+            .setOnClickListener {
+                val intent = Intent(this, SafPackageListActivity::class.java)
+                startActivity(intent)
+            }
     }
 
     private fun setupButtons() {
@@ -247,58 +269,84 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 异步刷新所有信息显示，避免阻塞主线程
-        refreshAllDataAsync()
+        // 延迟刷新，避免阻塞主线程
+        // 只在必要时刷新，避免重复执行
+        if (!isResumed) {
+            isResumed = true
+            postDelayed({
+                refreshAllDataAsync()
+            }, 300) // 延迟300ms执行
+        }
     }
     
+    override fun onPause() {
+        super.onPause()
+        isResumed = false
+    }
+    
+    private var isResumed = false
+    
     /**
-     * 异步刷新所有数据
+     * 延迟执行，避免阻塞主线程
+     */
+    private fun postDelayed(action: () -> Unit, delayMillis: Long = 100) {
+        findViewById<android.view.View>(android.R.id.content)?.postDelayed(action, delayMillis)
+    }
+    
+    private var isRefreshing = false
+    
+    /**
+     * 异步刷新所有数据（优化版本，避免重复执行）
      */
     private fun refreshAllDataAsync() {
+        // 如果正在刷新，跳过
+        if (isRefreshing) {
+            return
+        }
+        isRefreshing = true
+        
         Thread {
-            // 在后台线程执行耗时操作
-            val bootId = try {
-                val bootIdFile = java.io.File("/proc/sys/kernel/random/boot_id")
-                if (bootIdFile.exists()) {
-                    bootIdFile.readText().trim()
-                } else {
-                    "无法读取 Boot ID"
+            try {
+                // 在后台线程执行耗时操作
+                val bootId = try {
+                    val bootIdFile = java.io.File("/proc/sys/kernel/random/boot_id")
+                    if (bootIdFile.exists()) {
+                        bootIdFile.readText().trim()
+                    } else {
+                        "无法读取 Boot ID"
+                    }
+                } catch (e: Exception) {
+                    "读取失败: ${e.message}"
                 }
+                
+                // 在主线程更新UI
+                runOnUiThread {
+                    tvBootId.text = bootId
+                }
+                
+                // 分批执行，避免一次性执行太多操作
+                // 第一批：快速操作
+                refreshDeviceIdsAsync()
+                refreshAccessibilityServicesAsync()
+                refreshVpnStatusAsync()
+                refreshLockScreenStatusAsync()
+                
+                // 延迟执行第二批：耗时操作
+                Thread.sleep(200)
+                refreshImeiAsync()
+                
+                // 延迟执行第三批：最耗时操作
+                Thread.sleep(300)
+                refreshRecentTasksAsync()
+                refreshRootDetectionAsync()
+                refreshVbmetaDigestAsync()
+                refreshKeyAttestationAsync()
+                
             } catch (e: Exception) {
-                "读取失败: ${e.message}"
+                Log.e("MainActivity", "刷新数据失败", e)
+            } finally {
+                isRefreshing = false
             }
-            
-            // 在主线程更新UI
-            runOnUiThread {
-                tvBootId.text = bootId
-            }
-            
-            // 刷新设备标识符（包含耗时操作）
-            refreshDeviceIdsAsync()
-            
-            // 刷新无障碍服务
-            refreshAccessibilityServicesAsync()
-            
-        // 刷新VPN状态
-            refreshVpnStatusAsync()
-            
-            // 刷新锁屏状态
-            refreshLockScreenStatusAsync()
-            
-            // 刷新IMEI（最耗时）
-            refreshImeiAsync()
-            
-            // 刷新 Recent Tasks
-            refreshRecentTasksAsync()
-            
-            // 刷新 Root 工具检测
-            refreshRootDetectionAsync()
-            
-            // 刷新 VBmeta Digest
-            refreshVbmetaDigestAsync()
-            
-            // 刷新 Key Attestation
-            refreshKeyAttestationAsync()
         }.start()
     }
 
@@ -1062,37 +1110,27 @@ class MainActivity : ComponentActivity() {
      * 加载初始数据
      */
     private fun loadInitialData() {
-        // 异步刷新所有卡片显示
+        // 异步刷新所有卡片显示（已经包含了所有刷新操作，避免重复调用）
         refreshAllDataAsync()
-        
-        // 刷新 Recent Tasks
-        refreshRecentTasks()
 
-        // 刷新 Root 工具检测
-        refreshRootDetection()
-        
-        // 刷新 VBmeta Digest
-        refreshVbmetaDigest()
-        
-        // 刷新 Key Attestation
-        refreshKeyAttestation()
-        
         // 应用列表加载是耗时操作，移到后台线程
-        dataList.clear()
-        dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-        dataList.add(ListItem("正在加载应用列表...", ItemType.APP_LIST))
-        adapter.notifyDataSetChanged()
+        runOnUiThread {
+            dataList.clear()
+            dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
+            dataList.add(ListItem("正在加载应用列表...", ItemType.APP_LIST))
+            adapter.notifyDataSetChanged()
+        }
 
         // 在后台线程加载应用列表
         Thread {
             try {
-        val apps = getAppListForDisplay()
+                val apps = getAppListForDisplay()
                 // 在主线程更新UI
                 runOnUiThread {
                     dataList.clear()
                     dataList.add(ListItem("=== 应用列表 ===", ItemType.APP_LIST))
-        dataList.addAll(apps)
-        adapter.notifyDataSetChanged()
+                    dataList.addAll(apps)
+                    adapter.notifyDataSetChanged()
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "加载应用列表失败", e)
@@ -1919,21 +1957,32 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun detectAutoJsOperation() {
-        // 需要用户在系统设置中授予 PACKAGE_USAGE_STATS 权限
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val currentTime = System.currentTimeMillis()
+        // 移到后台线程执行，避免阻塞主线程
+        Thread {
+            try {
+                // 需要用户在系统设置中授予 PACKAGE_USAGE_STATS 权限
+                val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                val currentTime = System.currentTimeMillis()
 
-        // 获取最近1小时的应用使用情况
-        val usageStatsList: List<UsageStats> = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            currentTime - 1000 * 3600,
-            currentTime
-        )
+                // 获取最近1小时的应用使用情况
+                val usageStatsList: List<UsageStats> = usageStatsManager.queryUsageStats(
+                    UsageStatsManager.INTERVAL_DAILY,
+                    currentTime - 1000 * 3600,
+                    currentTime
+                )
 
-        // 输出每个应用的包名和最后使用时间
-        for (usageStats in usageStatsList) {
-            Log.d("UsageStats", "Package: ${usageStats.packageName} LastTimeUsed: ${usageStats.lastTimeUsed}")
-        }
+                // 输出每个应用的包名和最后使用时间（限制日志数量）
+                val limitedList = usageStatsList.take(50) // 只输出前50个，避免日志过多
+                for (usageStats in limitedList) {
+                    Log.d("UsageStats", "Package: ${usageStats.packageName} LastTimeUsed: ${usageStats.lastTimeUsed}")
+                }
+                if (usageStatsList.size > 50) {
+                    Log.d("UsageStats", "... 还有 ${usageStatsList.size - 50} 个应用未显示")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "检测 AutoJs 操作失败", e)
+            }
+        }.start()
     }
 
     /**
