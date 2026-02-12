@@ -352,20 +352,25 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 获取正在运行的无障碍服务
+     * 获取无障碍服务（包含 enabled 和 installed 检测）
      */
     private fun getAccessibilityServices(): List<ListItem> {
         val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
             AccessibilityServiceInfo.FEEDBACK_ALL_MASK
         )
+        val installedServices = accessibilityManager.getInstalledAccessibilityServiceList()
         
         val accessibilityItems = ArrayList<ListItem>()
         
+        // 构建已启用服务的 ID 集合
+        val enabledIds = enabledServices.map { "${it.resolveInfo.serviceInfo.packageName}/${it.resolveInfo.serviceInfo.name}" }.toSet()
+        
+        // 1. 已启用 (enabled) 的无障碍服务
         if (enabledServices.isEmpty()) {
             accessibilityItems.add(ListItem("没有启用的无障碍服务", ItemType.ACCESSIBILITY_SERVICE))
         } else {
-            accessibilityItems.add(ListItem("=== 正在运行的无障碍服务 ===", ItemType.ACCESSIBILITY_SERVICE))
+            accessibilityItems.add(ListItem("=== 已启用 (enabled) 的无障碍服务 ===", ItemType.ACCESSIBILITY_SERVICE))
             
             for (serviceInfo in enabledServices) {
                 val serviceName = try {
@@ -384,6 +389,32 @@ class MainActivity : ComponentActivity() {
                 val statusText = if (isRunning) "运行中" else "已停止"
                 
                 val itemText = "服务: $serviceName\n包名: $packageName\n类名: $serviceClassName\n状态: $statusText"
+                accessibilityItems.add(ListItem(itemText, ItemType.ACCESSIBILITY_SERVICE))
+            }
+        }
+        
+        // 2. 已安装 (installed) 但未启用的无障碍服务
+        val installedOnly = installedServices.filter { serviceInfo ->
+            val id = "${serviceInfo.resolveInfo.serviceInfo.packageName}/${serviceInfo.resolveInfo.serviceInfo.name}"
+            id !in enabledIds
+        }
+        
+        if (installedOnly.isNotEmpty()) {
+            accessibilityItems.add(ListItem("=== 已安装 (installed) 但未启用的无障碍服务 ===", ItemType.ACCESSIBILITY_SERVICE))
+            
+            for (serviceInfo in installedOnly) {
+                val serviceName = try {
+                    val packageManager = packageManager
+                    val appInfo = packageManager.getApplicationInfo(serviceInfo.resolveInfo.serviceInfo.packageName, 0)
+                    packageManager.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    serviceInfo.resolveInfo.serviceInfo.packageName
+                }
+                
+                val packageName = serviceInfo.resolveInfo.serviceInfo.packageName
+                val serviceClassName = serviceInfo.resolveInfo.serviceInfo.name
+                
+                val itemText = "服务: $serviceName\n包名: $packageName\n类名: $serviceClassName\n状态: 已安装但未启用"
                 accessibilityItems.add(ListItem(itemText, ItemType.ACCESSIBILITY_SERVICE))
             }
         }
@@ -408,6 +439,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 检测特定的无障碍服务（如 AutoJs 相关服务）
+     * 包含 enabled 和 installed 检测
      */
     private fun detectSpecificAccessibilityServices(): List<ListItem> {
         val specificServices = ArrayList<ListItem>()
@@ -415,19 +447,22 @@ class MainActivity : ComponentActivity() {
         val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
             AccessibilityServiceInfo.FEEDBACK_ALL_MASK
         )
+        val installedServices = accessibilityManager.getInstalledAccessibilityServiceList()
         
-        // 检测 AutoJs 相关服务
-        val autoJsServices = enabledServices.filter { serviceInfo ->
+        val enabledIds = enabledServices.map { "${it.resolveInfo.serviceInfo.packageName}/${it.resolveInfo.serviceInfo.name}" }.toSet()
+        
+        // 检测 AutoJs 相关服务（从 installed 中查找，区分 enabled 和 installed-only）
+        val autoJsServices = installedServices.filter { serviceInfo ->
             val packageName = serviceInfo.resolveInfo.serviceInfo.packageName
-            packageName.contains("autojs") || 
-            packageName.contains("auto.js") ||
-            packageName.contains("autojspro") ||
-            packageName.contains("hamibot") ||
-            packageName.contains("autoxjs")
+            packageName.contains("autojs", ignoreCase = true) || 
+            packageName.contains("auto.js", ignoreCase = true) ||
+            packageName.contains("autojspro", ignoreCase = true) ||
+            packageName.contains("hamibot", ignoreCase = true) ||
+            packageName.contains("autoxjs", ignoreCase = true)
         }
         
         if (autoJsServices.isNotEmpty()) {
-            specificServices.add(ListItem("=== 检测到自动化相关服务 ===", ItemType.ACCESSIBILITY_SERVICE))
+            specificServices.add(ListItem("=== 检测到自动化相关服务 (enabled + installed) ===", ItemType.ACCESSIBILITY_SERVICE))
             
             for (serviceInfo in autoJsServices) {
                 val serviceName = try {
@@ -440,8 +475,14 @@ class MainActivity : ComponentActivity() {
                 
                 val packageName = serviceInfo.resolveInfo.serviceInfo.packageName
                 val serviceClassName = serviceInfo.resolveInfo.serviceInfo.name
-                val isRunning = isAccessibilityServiceRunning(packageName, serviceClassName)
-                val statusText = if (isRunning) "运行中" else "已停止"
+                val serviceId = "$packageName/$serviceClassName"
+                val isEnabled = serviceId in enabledIds
+                val isRunning = if (isEnabled) isAccessibilityServiceRunning(packageName, serviceClassName) else false
+                val statusText = when {
+                    isRunning -> "运行中 (enabled)"
+                    isEnabled -> "已停止 (enabled)"
+                    else -> "已安装但未启用 (installed only)"
+                }
                 
                 // 获取服务的详细信息
                 val serviceDetails = getAccessibilityServiceDetails(serviceInfo)
@@ -522,14 +563,22 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 获取无障碍服务统计信息
+     * 包含 enabled 和 installed 统计
      */
     private fun getAccessibilityServiceStats(): ListItem {
         val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
             AccessibilityServiceInfo.FEEDBACK_ALL_MASK
         )
+        val installedServices = accessibilityManager.getInstalledAccessibilityServiceList()
         
-        val totalServices = enabledServices.size
+        val enabledIds = enabledServices.map { "${it.resolveInfo.serviceInfo.packageName}/${it.resolveInfo.serviceInfo.name}" }.toSet()
+        val enabledCount = enabledServices.size
+        val installedCount = installedServices.size
+        val installedOnlyCount = installedServices.count { serviceInfo ->
+            val id = "${serviceInfo.resolveInfo.serviceInfo.packageName}/${serviceInfo.resolveInfo.serviceInfo.name}"
+            id !in enabledIds
+        }
         val runningServices = enabledServices.count { serviceInfo ->
             isAccessibilityServiceRunning(
                 serviceInfo.resolveInfo.serviceInfo.packageName,
@@ -546,7 +595,7 @@ class MainActivity : ComponentActivity() {
             packageName.contains("autoxjs")
         }
         
-        val statsText = "无障碍服务统计:\n总服务数: $totalServices\n运行中: $runningServices\n自动化相关: $autoJsServices"
+        val statsText = "无障碍服务统计:\n已安装(installed): $installedCount\n已启用(enabled): $enabledCount\n已安装未启用: $installedOnlyCount\n运行中: $runningServices\n自动化相关: $autoJsServices"
         
         return ListItem(statsText, ItemType.ACCESSIBILITY_SERVICE)
     }
@@ -1110,6 +1159,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 刷新无障碍服务信息（异步版本）
+     * 包含 enabled 和 installed 检测
      */
     private fun refreshAccessibilityServicesAsync() {
         Thread {
@@ -1117,13 +1167,18 @@ class MainActivity : ComponentActivity() {
             val enabledServices = accessibilityManager.getEnabledAccessibilityServiceList(
                 AccessibilityServiceInfo.FEEDBACK_ALL_MASK
             )
+            val installedServices = accessibilityManager.getInstalledAccessibilityServiceList()
             
             val serviceInfo = StringBuilder()
             
+            // 构建已启用服务的 ID 集合
+            val enabledIds = enabledServices.map { "${it.resolveInfo.serviceInfo.packageName}/${it.resolveInfo.serviceInfo.name}" }.toSet()
+            
+            // 1. 已启用 (enabled)
             if (enabledServices.isEmpty()) {
-                serviceInfo.append("没有启用的无障碍服务")
+                serviceInfo.append("没有启用的无障碍服务\n\n")
             } else {
-                serviceInfo.append("已启用 ${enabledServices.size} 个无障碍服务:\n\n")
+                serviceInfo.append("【已启用 enabled】共 ${enabledServices.size} 个:\n\n")
                 
                 for (serviceInfoItem in enabledServices) {
                     val serviceName = try {
@@ -1141,6 +1196,32 @@ class MainActivity : ComponentActivity() {
                     serviceInfo.append("• $serviceName\n")
                     serviceInfo.append("  包名: $packageName\n")
                     serviceInfo.append("  状态: $statusText\n\n")
+                }
+            }
+            
+            // 2. 已安装 (installed) 但未启用
+            val installedOnly = installedServices.filter { serviceInfoItem ->
+                val id = "${serviceInfoItem.resolveInfo.serviceInfo.packageName}/${serviceInfoItem.resolveInfo.serviceInfo.name}"
+                id !in enabledIds
+            }
+            
+            if (installedOnly.isNotEmpty()) {
+                serviceInfo.append("【已安装 installed 但未启用】共 ${installedOnly.size} 个:\n\n")
+                
+                for (serviceInfoItem in installedOnly) {
+                    val serviceName = try {
+                        val packageManager = packageManager
+                        val appInfo = packageManager.getApplicationInfo(serviceInfoItem.resolveInfo.serviceInfo.packageName, 0)
+                        packageManager.getApplicationLabel(appInfo).toString()
+                    } catch (e: Exception) {
+                        serviceInfoItem.resolveInfo.serviceInfo.packageName
+                    }
+                    
+                    val packageName = serviceInfoItem.resolveInfo.serviceInfo.packageName
+                    
+                    serviceInfo.append("• $serviceName\n")
+                    serviceInfo.append("  包名: $packageName\n")
+                    serviceInfo.append("  状态: 已安装但未启用\n\n")
                 }
             }
             

@@ -203,9 +203,17 @@ class SafPackageListActivity : AppCompatActivity() {
 
     /**
      * 方法1: 使用 File.listFiles() 获取包名列表
+     * 
+     * 验证：此方法调用 File.listFiles()，用于验证是否会经过 com.android.providers.media.module
+     * 如果 LSPosed hook 中看到 queryChildDocuments 被调用，说明 File.listFiles() 确实会经过 ExternalStorageProvider
      */
     private fun getPackagesByListFiles(directory: java.io.File): List<String> {
         val packageList = ArrayList<String>()
+        
+        // 验证日志：记录调用 File.listFiles() 的信息
+        Log.i(TAG, "🔍 [验证] 开始调用 File.listFiles() - 路径: ${directory.absolutePath}")
+        Log.i(TAG, "🔍 [验证] 请查看 LSPosed 日志，确认是否看到 queryChildDocuments 被调用")
+        
         try {
             val files = directory.listFiles()
             if (files != null) {
@@ -229,9 +237,24 @@ class SafPackageListActivity : AppCompatActivity() {
 
     /**
      * 方法2: 使用 File.list() 获取包名列表
+     * 
+     * 验证：此方法调用 File.list()，用于验证是否会经过 com.android.providers.media.module
+     * 如果 LSPosed hook 中看到 queryChildDocuments 被调用，说明 File.list() 确实会经过 ExternalStorageProvider
      */
     private fun getPackagesByList(directory: java.io.File): List<String> {
         val packageList = ArrayList<String>()
+        
+        // 验证日志：记录调用 File.list() 的信息
+        Log.i(TAG, "🔍 [验证] 开始调用 File.list() - 路径: ${directory.absolutePath}")
+        Log.i(TAG, "🔍 [验证] 请查看 LSPosed 日志，确认是否看到 queryChildDocuments 被调用")
+        
+        // 记录调用栈（前5层）
+        val stackTrace = Thread.currentThread().stackTrace
+        val callStack = StringBuilder("调用栈:\n")
+        for (i in 0 until minOf(5, stackTrace.size)) {
+            callStack.append("  [${i}] ${stackTrace[i].className}.${stackTrace[i].methodName}\n")
+        }
+        Log.d(TAG, callStack.toString())
         try {
             val fileNames = directory.list()
             if (fileNames != null) {

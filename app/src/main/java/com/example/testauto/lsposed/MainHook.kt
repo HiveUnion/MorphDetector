@@ -12,23 +12,23 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
  * ## 为什么只需要 Hook com.android.providers.media.module？
  * 
  * **核心原理**：
- * - 所有应用的 SAF (Storage Access Framework) 访问都会经过 `com.android.providers.media.module`
- * - 当应用使用 DocumentFile、SAF URI 等方式访问文件时，都会调用 `ExternalStorageProvider` 的方法
- * - 零宽字符攻击主要是通过 SAF 进行的，所以只需要在 `ExternalStorageProvider` 中拦截即可
+ * - 在 Android 10+ (Scoped Storage) 下，文件访问会经过 `com.android.providers.media.module`
+ * - 所有应用的 SAF (Storage Access Framework) 访问都会经过 `ExternalStorageProvider`
+ * - 即使是 `File.listFiles()` / `File.list()` 等直接文件系统调用，在某些路径下也会被重定向到 `ExternalStorageProvider`
+ * - 零宽字符攻击会通过这些文件访问方法进行，所以在 `ExternalStorageProvider` 中拦截即可
  * 
  * **优势**：
  * - 不需要勾选任何三方应用，只需要勾选系统模块 `com.android.providers.media.module`
- * - 所有 SAF 访问都会被拦截，覆盖范围广
+ * - 所有文件访问（包括 File API 和 SAF）都会被拦截，覆盖范围广
  * - 性能影响小，只在系统模块中 Hook
  * 
  * **重要说明**：
- * - `File.listFiles()` 是直接的文件系统调用，**不会**经过 `com.android.providers.media.module`
- * - 只有使用 SAF (Storage Access Framework) 时才会经过这里：
+ * - 以下文件访问方式都会经过 `com.android.providers.media.module`：
  *   - `DocumentFile.listFiles()` ✅ 会经过
  *   - SAF URI 访问 ✅ 会经过
- *   - `File.listFiles()` ❌ 不会经过（直接调用文件系统）
- * - 零宽字符攻击主要是通过 SAF 进行的（绕过 Scoped Storage），所以这个方案已经足够
- * - 如果攻击者使用 `File.listFiles()` 直接访问，需要应用有直接文件访问权限，此时不需要零宽字符
+ *   - `File.listFiles()` ✅ 会经过（在 Scoped Storage 下会被重定向）
+ *   - `File.list()` ✅ 会经过（在 Scoped Storage 下会被重定向）
+ * - 通过 Hook `ExternalStorageProvider` 的方法，可以拦截所有通过零宽字符绕过 Scoped Storage 的攻击
  * 
  * 使用说明：
  * 1. 在 LSPosed Manager 中启用此模块
