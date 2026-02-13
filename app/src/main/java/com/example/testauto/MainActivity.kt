@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var tvRootDetection: android.widget.TextView
     private lateinit var tvVbmetaDigest: android.widget.TextView
     private lateinit var tvKeyAttestation: android.widget.TextView
+    private lateinit var tvBatteryInfo: android.widget.TextView
     
     companion object {
         private const val PERMISSION_REQUEST_CODE_READ_PHONE_STATE = 1001
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
         tvRootDetection = findViewById(R.id.tvRootDetection)
         tvVbmetaDigest = findViewById(R.id.tvVbmetaDigest)
         tvKeyAttestation = findViewById(R.id.tvKeyAttestation)
+        tvBatteryInfo = findViewById(R.id.tvBatteryInfo)
 
         // 设置按钮点击事件
         setupButtons()
@@ -248,6 +251,10 @@ class MainActivity : ComponentActivity() {
         findViewById<android.widget.Button>(R.id.btnRefreshKeyAttestation).setOnClickListener {
             refreshKeyAttestation()
         }
+
+        findViewById<android.widget.Button>(R.id.btnRefreshBattery).setOnClickListener {
+            refreshBatteryInfo()
+        }
     }
 
     private fun openAccessibilitySettings() {
@@ -342,6 +349,7 @@ class MainActivity : ComponentActivity() {
                 refreshRootDetectionAsync()
                 refreshVbmetaDigestAsync()
                 refreshKeyAttestationAsync()
+                refreshBatteryInfoAsync()
                 
             } catch (e: Exception) {
                 Log.e("MainActivity", "刷新数据失败", e)
@@ -1920,6 +1928,178 @@ class MainActivity : ComponentActivity() {
      */
     private fun refreshKeyAttestation() {
         refreshKeyAttestationAsync()
+    }
+
+    // ==================== 电量信息检测 ====================
+
+    /**
+     * 刷新电量信息（同步入口）
+     */
+    private fun refreshBatteryInfo() {
+        refreshBatteryInfoAsync()
+    }
+
+    /**
+     * 异步获取所有电量信息路径的值并展示
+     * 覆盖 app 能获取电量的所有方式
+     */
+    private fun refreshBatteryInfoAsync() {
+        Thread {
+            val info = StringBuilder()
+
+            // === 路径 1: BatteryManager.getIntProperty ===
+            info.append("═══ 路径 1: BatteryManager.getIntProperty ═══\n")
+            try {
+                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val capacity = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val chargeCounter = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+                val currentNow = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+                val currentAvg = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+                val energyCounter = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
+                val status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+
+                info.append("电量 (CAPACITY): $capacity%\n")
+                info.append("充电计数 (CHARGE_COUNTER): $chargeCounter μAh\n")
+                info.append("当前电流 (CURRENT_NOW): $currentNow μA\n")
+                info.append("平均电流 (CURRENT_AVG): $currentAvg μA\n")
+                info.append("能量计数 (ENERGY_COUNTER): $energyCounter nWh\n")
+                info.append("状态 (STATUS): ${batteryStatusToString(status)}\n")
+            } catch (e: Exception) {
+                info.append("获取失败: ${e.message}\n")
+            }
+
+            // === 路径 2: getLongProperty ===
+            info.append("\n═══ 路径 2: BatteryManager.getLongProperty ═══\n")
+            try {
+                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val capacityLong = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val chargeCounterLong = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+                info.append("电量 (CAPACITY): $capacityLong%\n")
+                info.append("充电计数 (CHARGE_COUNTER): $chargeCounterLong μAh\n")
+            } catch (e: Exception) {
+                info.append("获取失败: ${e.message}\n")
+            }
+
+            // === 路径 3: Sticky Broadcast (registerReceiver) ===
+            info.append("\n═══ 路径 3: Sticky Broadcast (registerReceiver) ═══\n")
+            try {
+                val batteryIntent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                if (batteryIntent != null) {
+                    val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    val status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                    val plugged = batteryIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+                    val voltage = batteryIntent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
+                    val temperature = batteryIntent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)
+                    val health = batteryIntent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)
+                    val technology = batteryIntent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY) ?: "未知"
+                    val batteryLow = batteryIntent.getBooleanExtra("android.os.extra.BATTERY_LOW", false)
+
+                    val percentage = if (scale > 0) (level * 100 / scale) else level
+
+                    info.append("电量: $level / $scale ($percentage%)\n")
+                    info.append("状态: ${batteryStatusToString(status)}\n")
+                    info.append("充电方式: ${pluggedToString(plugged)}\n")
+                    info.append("电压: ${voltage}mV\n")
+                    info.append("温度: ${temperature / 10.0}°C\n")
+                    info.append("健康: ${healthToString(health)}\n")
+                    info.append("技术: $technology\n")
+                    info.append("低电量: $batteryLow\n")
+                } else {
+                    info.append("无法获取电量 Intent\n")
+                }
+            } catch (e: Exception) {
+                info.append("获取失败: ${e.message}\n")
+            }
+
+            // === 路径 4: 读 /sys/class/power_supply/battery/capacity ===
+            info.append("\n═══ 路径 4: sysfs 文件读取 ═══\n")
+            val sysfsFiles = mapOf(
+                "capacity" to "/sys/class/power_supply/battery/capacity",
+                "status" to "/sys/class/power_supply/battery/status",
+                "voltage_now" to "/sys/class/power_supply/battery/voltage_now",
+                "current_now" to "/sys/class/power_supply/battery/current_now",
+                "temp" to "/sys/class/power_supply/battery/temp",
+                "health" to "/sys/class/power_supply/battery/health",
+                "technology" to "/sys/class/power_supply/battery/technology"
+            )
+            for ((name, path) in sysfsFiles) {
+                try {
+                    val file = java.io.File(path)
+                    if (file.exists() && file.canRead()) {
+                        val value = file.readText().trim()
+                        info.append("$name: $value\n")
+                    } else {
+                        info.append("$name: 无法读取 (SELinux 限制)\n")
+                    }
+                } catch (e: Exception) {
+                    info.append("$name: ${e.message}\n")
+                }
+            }
+
+            // === 路径 5: isCharging / computeChargeTimeRemaining ===
+            info.append("\n═══ 路径 5: BatteryManager 辅助 API ═══\n")
+            try {
+                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val isCharging = bm.isCharging
+                info.append("isCharging: $isCharging\n")
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val chargeTimeRemaining = bm.computeChargeTimeRemaining()
+                    info.append("computeChargeTimeRemaining: ${chargeTimeRemaining}ms\n")
+                }
+            } catch (e: Exception) {
+                info.append("获取失败: ${e.message}\n")
+            }
+
+            // === 一致性校验 ===
+            info.append("\n═══ 一致性校验 ═══\n")
+            try {
+                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val apiLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val batteryIntent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val broadcastLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+
+                if (apiLevel == broadcastLevel) {
+                    info.append("✓ getIntProperty 与广播一致: $apiLevel%\n")
+                } else {
+                    info.append("⚠ 不一致! API=$apiLevel% 广播=$broadcastLevel%\n")
+                }
+            } catch (e: Exception) {
+                info.append("校验失败: ${e.message}\n")
+            }
+
+            runOnUiThread {
+                tvBatteryInfo.text = info.toString().trim()
+            }
+        }.start()
+    }
+
+    private fun batteryStatusToString(status: Int): String = when (status) {
+        BatteryManager.BATTERY_STATUS_CHARGING -> "充电中 ($status)"
+        BatteryManager.BATTERY_STATUS_DISCHARGING -> "放电中 ($status)"
+        BatteryManager.BATTERY_STATUS_FULL -> "已充满 ($status)"
+        BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "未充电 ($status)"
+        BatteryManager.BATTERY_STATUS_UNKNOWN -> "未知 ($status)"
+        else -> "未知状态 ($status)"
+    }
+
+    private fun pluggedToString(plugged: Int): String = when (plugged) {
+        0 -> "未插电 ($plugged)"
+        BatteryManager.BATTERY_PLUGGED_AC -> "AC 充电 ($plugged)"
+        BatteryManager.BATTERY_PLUGGED_USB -> "USB 充电 ($plugged)"
+        BatteryManager.BATTERY_PLUGGED_WIRELESS -> "无线充电 ($plugged)"
+        else -> "其他 ($plugged)"
+    }
+
+    private fun healthToString(health: Int): String = when (health) {
+        BatteryManager.BATTERY_HEALTH_GOOD -> "良好 ($health)"
+        BatteryManager.BATTERY_HEALTH_OVERHEAT -> "过热 ($health)"
+        BatteryManager.BATTERY_HEALTH_DEAD -> "损坏 ($health)"
+        BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "过压 ($health)"
+        BatteryManager.BATTERY_HEALTH_COLD -> "过冷 ($health)"
+        BatteryManager.BATTERY_HEALTH_UNKNOWN -> "未知 ($health)"
+        else -> "未知健康状态 ($health)"
     }
 
     private fun testAdbProcess(){
