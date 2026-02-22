@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 页面标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="自动化监测"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 输入框区域：标题 + 输入框 + 内部信息（输入的来源、文本的变化、异常日志） -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardAnomalyLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/surface_variant"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/divider">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="输入框"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/on_surface"
+                    android:layout_marginBottom="8dp" />
+
+                <com.example.testauto.MonitorableEditText
+                    android:id="@+id/editMonitorInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:hint="在此输入，用于监测来源与变化"
+                    android:inputType="text"
+                    android:padding="12dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/on_surface"
+                    android:background="@android:color/transparent" />
+
+                <!-- 输入框内部信息：输入的来源 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="输入的来源"
+                    android:textSize="12sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="2dp" />
+                <TextView
+                    android:id="@+id/tvInputSource"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="暂无输入记录"
+                    android:textSize="13sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp" />
+
+                <!-- 输入框内部信息：文本的变化 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="文本的变化"
+                    android:textSize="12sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="2dp" />
+                <TextView
+                    android:id="@+id/tvTextChanges"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
+                    android:text="暂无变化记录"
+                    android:textSize="13sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp" />
+
+                <!-- 输入框内部信息：异常日志 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="异常日志"
+                    android:textSize="12sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="2dp" />
+                <TextView
+                    android:id="@+id/tvAnomalyLog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:text="暂无异常"
+                    android:textSize="13sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp" />
+
+                <!-- 清除所有日志：靠右、宽度随内容 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="end">
+                    <Button
+                        android:id="@+id/btnClearLogs"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="96dp"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="清除日志"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

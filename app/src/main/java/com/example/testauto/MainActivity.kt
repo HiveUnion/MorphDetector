@@ -111,6 +111,9 @@ class MainActivity : ComponentActivity() {
         // 设置应用列表卡片点击事件
         setupAppListCard()
 
+        // 设置自动化监测卡片点击事件
+        setupAutomationMonitorCard()
+
         // 检查并请求权限
         checkAndRequestPhoneStatePermission()
         
@@ -194,6 +197,17 @@ class MainActivity : ComponentActivity() {
         findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardAppList)
             .setOnClickListener {
                 val intent = Intent(this, AppListActivity::class.java)
+                startActivity(intent)
+            }
+    }
+
+    /**
+     * 设置自动化监测卡片点击事件
+     */
+    private fun setupAutomationMonitorCard() {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardAutomationMonitor)
+            .setOnClickListener {
+                val intent = Intent(this, AutomationMonitorActivity::class.java)
                 startActivity(intent)
             }
     }

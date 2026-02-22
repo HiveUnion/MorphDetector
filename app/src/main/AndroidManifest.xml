@@ -54,6 +54,12 @@
             android:label="应用列表"
             android:theme="@style/Theme.TestAutoJs" />
 
+        <activity
+            android:name=".AutomationMonitorActivity"
+            android:exported="false"
+            android:label="自动化监测"
+            android:theme="@style/Theme.TestAutoJs" />
+
         <!-- LSPosed 模块元数据 -->
         <meta-data
             android:name="xposedmodule"
