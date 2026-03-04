@@ -680,6 +680,118 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- 剪贴板来源包名检测卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="剪贴板来源包名检测"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="在其他应用复制文本，然后长按粘贴到下方输入框"
+                        android:textSize="13sp"
+                        android:textColor="@color/on_surface_variant"
+                        android:layout_marginBottom="12dp" />
+
+                    <EditText
+                        android:id="@+id/editClipboardPaste"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="长按粘贴到这里..."
+                        android:minHeight="48dp"
+                        android:padding="12dp"
+                        android:textSize="14sp"
+                        android:background="@drawable/button_primary_ripple"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvClipboardSource"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="等待粘贴..."
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Button
+                        android:id="@+id/btnDetectClipboardSource"
+                        style="@style/Widget.TestAutoJs.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/button_primary_ripple"
+                        android:text="读取剪贴板日志"
+                        android:textColor="@color/on_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- MotionEvent 触摸检测卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardMotionEventDetection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="MotionEvent 触摸检测"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="检测 pressure/size/touchMajor/orientation 区分注入与真实手指"
+                        android:textSize="14sp"
+                        android:textColor="@color/on_surface_variant" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- SAF 包名列表卡片 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardSafPackageList"

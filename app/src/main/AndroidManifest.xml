@@ -56,8 +56,14 @@
 
         <activity
             android:name=".AutomationMonitorActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="自动化监测"
+            android:theme="@style/Theme.TestAutoJs" />
+
+        <activity
+            android:name=".MotionEventDetectionActivity"
+            android:exported="false"
+            android:label="MotionEvent 触摸检测"
             android:theme="@style/Theme.TestAutoJs" />
 
         <!-- LSPosed 模块元数据 -->

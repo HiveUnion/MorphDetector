@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var tvVbmetaDigest: android.widget.TextView
     private lateinit var tvKeyAttestation: android.widget.TextView
     private lateinit var tvBatteryInfo: android.widget.TextView
+    private lateinit var tvClipboardSource: android.widget.TextView
     
     companion object {
         private const val PERMISSION_REQUEST_CODE_READ_PHONE_STATE = 1001
@@ -101,6 +102,7 @@ class MainActivity : ComponentActivity() {
         tvVbmetaDigest = findViewById(R.id.tvVbmetaDigest)
         tvKeyAttestation = findViewById(R.id.tvKeyAttestation)
         tvBatteryInfo = findViewById(R.id.tvBatteryInfo)
+        tvClipboardSource = findViewById(R.id.tvClipboardSource)
 
         // 设置按钮点击事件
         setupButtons()
@@ -113,6 +115,12 @@ class MainActivity : ComponentActivity() {
 
         // 设置自动化监测卡片点击事件
         setupAutomationMonitorCard()
+
+        // 设置 MotionEvent 检测卡片点击事件
+        setupMotionEventDetectionCard()
+
+        // 初始化剪贴板来源检测（监听剪贴板变化）
+        setupClipboardSourceDetection()
 
         // 检查并请求权限
         checkAndRequestPhoneStatePermission()
@@ -212,6 +220,14 @@ class MainActivity : ComponentActivity() {
             }
     }
 
+    private fun setupMotionEventDetectionCard() {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardMotionEventDetection)
+            .setOnClickListener {
+                val intent = Intent(this, MotionEventDetectionActivity::class.java)
+                startActivity(intent)
+            }
+    }
+
     private fun setupButtons() {
         findViewById<android.widget.Button>(R.id.btnRefreshBootId).setOnClickListener {
             refreshBootId()
@@ -268,6 +284,10 @@ class MainActivity : ComponentActivity() {
 
         findViewById<android.widget.Button>(R.id.btnRefreshBattery).setOnClickListener {
             refreshBatteryInfo()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnDetectClipboardSource).setOnClickListener {
+            detectClipboardSource()
         }
     }
 
@@ -1945,6 +1965,201 @@ class MainActivity : ComponentActivity() {
     }
 
     // ==================== 电量信息检测 ====================
+
+    /**
+     * 初始化剪贴板来源包名检测
+     * 监听 EditText 的粘贴操作 + 监听剪贴板变化 + 读取 logcat 中 ClipboardService 日志
+     */
+    private fun setupClipboardSourceDetection() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+
+        // 监听剪贴板变化，实时记录来源信息
+        clipboard.addPrimaryClipChangedListener {
+            try {
+                val info = StringBuilder()
+                info.append("═══ 剪贴板变化 ═══\n")
+                info.append("时间: ${java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
+
+                val clipData = clipboard.primaryClip
+                val clipDesc = clipboard.primaryClipDescription
+
+                if (clipData != null && clipData.itemCount > 0) {
+                    val item = clipData.getItemAt(0)
+                    val text = item.text?.toString() ?: "(非文本)"
+                    val displayText = if (text.length > 80) text.substring(0, 80) + "..." else text
+                    info.append("内容: $displayText\n\n")
+                }
+
+                // ClipDescription
+                if (clipDesc != null) {
+                    info.append("label: ${clipDesc.label ?: "(null)"}\n")
+                    for (i in 0 until clipDesc.mimeTypeCount) {
+                        info.append("mimeType[$i]: ${clipDesc.getMimeType(i)}\n")
+                    }
+                }
+
+                // 反射 ClipboardManager 获取来源包名
+                info.append("\n═══ 来源包名 (反射) ═══\n")
+                appendClipboardManagerInternals(info, clipboard)
+
+                // 反射 ClipData 所有字段
+                if (clipData != null) {
+                    info.append("\n═══ ClipData 字段 ═══\n")
+                    for (field in clipData.javaClass.declaredFields) {
+                        try {
+                            field.isAccessible = true
+                            info.append("${field.name}: ${field.get(clipData)}\n")
+                        } catch (_: Exception) {
+                            info.append("${field.name}: (获取失败)\n")
+                        }
+                    }
+                }
+
+                runOnUiThread {
+                    tvClipboardSource.text = info.toString().trim()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    tvClipboardSource.text = "监听回调异常: ${e.message}"
+                }
+            }
+        }
+    }
+
+    /**
+     * 通过反射获取 ClipboardManager / IClipboard 内部的来源包名
+     */
+    private fun appendClipboardManagerInternals(info: StringBuilder, clipboard: android.content.ClipboardManager) {
+        // 1. 反射获取 IClipboard binder，调用 getPrimaryClipSource
+        try {
+            val serviceField = clipboard.javaClass.getDeclaredField("mService")
+            serviceField.isAccessible = true
+            val service = serviceField.get(clipboard) ?: throw Exception("mService is null")
+
+            // 列出 IClipboard 上所有方法（调试用）
+            val allMethods = service.javaClass.declaredMethods +
+                (service.javaClass.interfaces.flatMap { it.declaredMethods.toList() })
+            val clipMethods = allMethods.filter {
+                it.name.contains("source", ignoreCase = true) ||
+                it.name.contains("package", ignoreCase = true) ||
+                it.name.contains("Primary", ignoreCase = true)
+            }.distinctBy { it.name }
+
+            info.append("IClipboard 相关方法:\n")
+            for (m in clipMethods) {
+                info.append("  ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})\n")
+            }
+
+            // 尝试调用 getPrimaryClipSource
+            info.append("\n尝试调用 getPrimaryClipSource:\n")
+            var called = false
+
+            // 方式A: getPrimaryClipSource(String, String, int, int) - Android 14+
+            try {
+                val contextField = clipboard.javaClass.getDeclaredField("mContext")
+                contextField.isAccessible = true
+                val ctx = contextField.get(clipboard) as Context
+                val opPkg = ctx.opPackageName
+                val attrTag = ctx.attributionTag
+                val userId = android.os.UserHandle::class.java
+                    .getMethod("myUserId").invoke(null) as Int
+
+                for (m in allMethods) {
+                    if (m.name == "getPrimaryClipSource") {
+                        m.isAccessible = true
+                        val paramCount = m.parameterTypes.size
+                        info.append("  签名: ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})\n")
+                        val result = when (paramCount) {
+                            4 -> m.invoke(service, opPkg, attrTag, userId, 0)
+                            3 -> m.invoke(service, opPkg, attrTag, userId)
+                            2 -> m.invoke(service, opPkg, userId)
+                            1 -> m.invoke(service, opPkg)
+                            0 -> m.invoke(service)
+                            else -> null
+                        }
+                        info.append("  结果: $result\n")
+                        called = true
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                info.append("  调用失败: ${e.cause?.message ?: e.message}\n")
+            }
+
+            if (!called) {
+                info.append("  方法不存在或参数不匹配\n")
+            }
+        } catch (e: Exception) {
+            info.append("反射 IClipboard 失败: ${e.message}\n")
+        }
+    }
+
+    /**
+     * 读取剪贴板来源信息：
+     * 1. dumpsys clipboard（最可靠）
+     * 2. logcat ClipboardService
+     */
+    private fun detectClipboardSource() {
+        Thread {
+            val info = StringBuilder()
+
+            // === 方式1: dumpsys clipboard ===
+            info.append("═══ dumpsys clipboard ═══\n")
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("dumpsys", "clipboard"))
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val lines = mutableListOf<String>()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    lines.add(line!!)
+                }
+                reader.close()
+                process.waitFor()
+
+                if (lines.isEmpty()) {
+                    info.append("无输出（可能需要 root/shell 权限）\n")
+                } else {
+                    for (logLine in lines) {
+                        info.append("$logLine\n")
+                    }
+                }
+            } catch (e: Exception) {
+                info.append("执行失败: ${e.message}\n")
+            }
+
+            // === 方式2: logcat ClipboardService ===
+            info.append("\n═══ logcat ClipboardService ═══\n")
+            info.append("(需要 READ_LOGS 权限: adb shell pm grant $packageName android.permission.READ_LOGS)\n\n")
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf(
+                    "logcat", "-d", "-s", "ClipboardService:*", "-t", "50"
+                ))
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                val lines = mutableListOf<String>()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    lines.add(line!!)
+                }
+                reader.close()
+                process.waitFor()
+
+                if (lines.size <= 1) {
+                    info.append("未找到 ClipboardService 日志\n")
+                } else {
+                    for (logLine in lines) {
+                        info.append("$logLine\n")
+                    }
+                }
+            } catch (e: Exception) {
+                info.append("读取日志失败: ${e.message}\n")
+            }
+
+            runOnUiThread {
+                val current = tvClipboardSource.text.toString()
+                tvClipboardSource.text = current + "\n\n" + info.toString().trim()
+            }
+        }.start()
+    }
 
     /**
      * 刷新电量信息（同步入口）

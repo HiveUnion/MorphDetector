@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -57,6 +58,13 @@ class AutomationMonitorActivity : AppCompatActivity() {
 
     /** 当前一次文本变化是否来自程序 setText（在 onProgrammaticSetText 里置 true，TextWatcher 里消费后置 false） */
     private var nextChangeIsProgrammatic: Boolean = false
+
+    /**
+     * 当前一次文本变化是否来自虚拟键盘注入（input text / input keyevent）。
+     * 在 onVirtualKeyboardEvent 回调里置 true，afterTextChanged 消费后置 false。
+     * 优先级：programmatic > virtualKeyboard > paste > IME
+     */
+    private var nextChangeIsVirtualKeyboard: Boolean = false
 
     /** 上一帧文本内容，用于在 afterTextChanged 中计算 old -> new */
     private var lastKnownText: String = ""
@@ -132,18 +140,39 @@ class AutomationMonitorActivity : AppCompatActivity() {
 
     /** 设置输入框监测：来源 + 文本变化 */
     private fun setupEditTextMonitoring() {
-        // 程序 setText 时标记来源并记录异常（P1-2）
+        // P1-2：程序 setText 直接设置文本
         editMonitorInput.onProgrammaticSetText = { text ->
             nextChangeIsProgrammatic = true
             val time = timeFormat.format(Date())
             lastInputSourceText = "程序设置 (setText) — $time\n内容长度: ${text?.length ?: 0}"
-            runOnUiThread {
-                tvInputSource.text = lastInputSourceText
-            }
+            runOnUiThread { tvInputSource.text = lastInputSourceText }
             addAnomaly(
                 "P1-2 performAction 降级 (setText)",
-                "检测到通过 setText 直接设置文本，未经过 IME。若 app 监控 TextWatcher/InputConnection 可发现非键盘输入。时间: $time"
+                "检测到通过 setText 直接设置文本，未经过 IME。" +
+                    "若 app 监控 TextWatcher/InputConnection 可发现非键盘输入。时间: $time"
             )
+        }
+
+        // P2-1：虚拟键盘注入（input text / input keyevent，deviceId=-1）
+        editMonitorInput.onVirtualKeyboardEvent = { event ->
+            nextChangeIsVirtualKeyboard = true
+            val time = timeFormat.format(Date())
+            val keyName = KeyEvent.keyCodeToString(event.keyCode)
+            lastInputSourceText = "⚠️ 虚拟键盘注入 — $time\ndeviceId=${event.deviceId}  keyCode=$keyName(${event.keyCode})"
+            runOnUiThread { tvInputSource.text = lastInputSourceText }
+            addAnomaly(
+                "P2-1 虚拟键盘注入 (input text / input keyevent)",
+                "KeyEvent.deviceId=${event.deviceId}（VIRTUAL_KEYBOARD=-1），" +
+                    "keyCode=$keyName(${event.keyCode})，source=0x${event.source.toString(16)}。" +
+                    "真实物理键盘 deviceId >= 0，IME 输入走 commitText 不产生此事件。时间: $time"
+            )
+        }
+
+        // 正常 IME 路径：commitText，用于更新来源显示（不触发异常）
+        editMonitorInput.onImeCommitText = { text ->
+            val time = timeFormat.format(Date())
+            lastInputSourceText = "IME 提交 (commitText) — $time\n提交内容: \"$text\""
+            runOnUiThread { tvInputSource.text = lastInputSourceText }
         }
 
         editMonitorInput.addTextChangedListener(object : TextWatcher {
@@ -154,28 +183,27 @@ class AutomationMonitorActivity : AppCompatActivity() {
                 val newText = s?.toString() ?: ""
                 val time = timeFormat.format(Date())
 
-                if (nextChangeIsProgrammatic) {
-                    nextChangeIsProgrammatic = false
-                    addTextChangeEntry(time, "程序设置", lastKnownText, newText)
-                    lastKnownText = newText
-                    return
+                // 来源判定优先级：programmatic > virtualKeyboard > paste > IME/键盘
+                val source = when {
+                    nextChangeIsProgrammatic -> {
+                        nextChangeIsProgrammatic = false
+                        "程序设置"
+                    }
+                    nextChangeIsVirtualKeyboard -> {
+                        nextChangeIsVirtualKeyboard = false
+                        "⚠️ 虚拟键盘注入"
+                    }
+                    else -> {
+                        val clipText = getClipboardText()
+                        val recentlyChangedClip = System.currentTimeMillis() - lastClipChangeTime < PASTE_CLIP_WINDOW_MS
+                        val fromPaste = recentlyChangedClip && clipText != null && (
+                            clipText == newText || (newText.endsWith(clipText) && newText.length >= clipText.length)
+                        )
+                        if (fromPaste) "粘贴" else "IME/键盘"
+                    }
                 }
 
-                // 判定为粘贴：剪贴板内容与当前文本一致或为插入部分，且剪贴板刚变化
-                val clipText = getClipboardText()
-                val recentlyChangedClip = System.currentTimeMillis() - lastClipChangeTime < PASTE_CLIP_WINDOW_MS
-                val fromPaste = recentlyChangedClip && clipText != null && (
-                    clipText == newText || (newText.endsWith(clipText) && newText.length >= clipText.length)
-                )
-
-                val source = if (fromPaste) "粘贴" else "IME/键盘"
-                lastInputSourceText = "$source — $time\n当前长度: ${newText.length}"
-
-                runOnUiThread {
-                    tvInputSource.text = lastInputSourceText
-                }
-
-                // 文本变化记录：使用上一帧内容为 old，当前为 new
+                runOnUiThread { tvInputSource.text = lastInputSourceText }
                 addTextChangeEntry(time, source, lastKnownText, newText)
                 lastKnownText = newText
             }
