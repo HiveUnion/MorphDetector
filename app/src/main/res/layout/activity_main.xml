@@ -828,6 +828,42 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- KeyEvent 返回键检测卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardKeyEventBackDetection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="KeyEvent 返回键检测"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="检测 input keyevent 4 注入 vs 真实物理/手势返回"
+                        android:textSize="14sp"
+                        android:textColor="@color/on_surface_variant" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- 自动化监测卡片 -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAutomationMonitor"

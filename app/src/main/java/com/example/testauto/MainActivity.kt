@@ -119,6 +119,9 @@ class MainActivity : ComponentActivity() {
         // 设置 MotionEvent 检测卡片点击事件
         setupMotionEventDetectionCard()
 
+        // 设置 KeyEvent 返回键检测卡片点击事件
+        setupKeyEventBackDetectionCard()
+
         // 初始化剪贴板来源检测（监听剪贴板变化）
         setupClipboardSourceDetection()
 
@@ -224,6 +227,14 @@ class MainActivity : ComponentActivity() {
         findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardMotionEventDetection)
             .setOnClickListener {
                 val intent = Intent(this, MotionEventDetectionActivity::class.java)
+                startActivity(intent)
+            }
+    }
+
+    private fun setupKeyEventBackDetectionCard() {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardKeyEventBackDetection)
+            .setOnClickListener {
+                val intent = Intent(this, KeyEventBackDetectionActivity::class.java)
                 startActivity(intent)
             }
     }
