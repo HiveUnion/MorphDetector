@@ -72,6 +72,18 @@
             android:label="KeyEvent 返回键检测"
             android:theme="@style/Theme.TestAutoJs" />
 
+        <activity
+            android:name=".KeyEventDeleteDetectionActivity"
+            android:exported="false"
+            android:label="KeyEvent 删除键检测"
+            android:theme="@style/Theme.TestAutoJs" />
+
+        <activity
+            android:name=".KeyEventPasteDetectionActivity"
+            android:exported="false"
+            android:label="KeyEvent 粘贴键检测"
+            android:theme="@style/Theme.TestAutoJs" />
+
         <!-- LSPosed 模块元数据 -->
         <meta-data
             android:name="xposedmodule"
