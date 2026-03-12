@@ -1,113 +1,229 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
-    android:fillViewport="true">
+    android:background="@color/background">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="MotionEvent 触摸检测"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/on_surface"
-            android:layout_marginBottom="8dp" />
+            android:orientation="vertical"
+            android:padding="12dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="在屏幕任意位置触摸，检测 pressure/size/touchMajor/touchMinor/orientation 区分注入与真实手指"
-            android:textSize="14sp"
-            android:textColor="@color/on_surface_variant"
-            android:layout_marginBottom="16dp" />
-
-        <!-- 检测结果 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="2dp"
-            app:cardBackgroundColor="@color/surface_variant">
-
-            <LinearLayout
+            <!-- 标题说明 -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="检测结果"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/on_surface"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/tvDetectionResult"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="等待触摸..."
-                    android:textSize="18sp"
-                    android:textColor="@color/primary"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="MotionEvent 触摸检测"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="8dp" />
 
-                <TextView
-                    android:id="@+id/tvEventDetails"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textSize="13sp"
-                    android:textColor="@color/on_surface_variant"
-                    android:fontFamily="monospace"
-                    android:lineSpacingExtra="4dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="在屏幕任意位置触摸，检测注入 vs 真实手指。\n\n测试方式：\n1. input motionevent DOWN/UP (注入)\n2. input tap (注入)\n3. 真实手指触摸 (正常)"
+                        android:textSize="13sp"
+                        android:textColor="@color/on_surface_variant"
+                        android:lineSpacingExtra="3dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <!-- 参考说明 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp"
-            app:cardBackgroundColor="@color/surface_variant"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/divider">
-
-            <LinearLayout
+            <!-- 实时检测结果 -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="参考：注入 vs 真实手指"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/on_surface"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="检测结果"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- 判定结论 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvDetectionResult"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="等待触摸..."
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/on_surface"
+                            android:padding="16dp"
+                            android:gravity="center" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 详细参数 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvEventDetails"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="13sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="4dp" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 历史记录 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="• pressure: 注入=1.0(固定) | 真实=0.1–0.9\n• size: 注入=0 | 真实=0.1–0.3\n• touchMajor/Minor: 注入=0 | 真实=40–100px\n• orientation: 注入=0 | 真实=有旋转角度"
-                    android:textSize="12sp"
-                    android:textColor="@color/on_surface_variant"
-                    android:lineSpacingExtra="4dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </LinearLayout>
-</ScrollView>
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="历史记录 (DOWN/UP)"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/on_surface" />
+
+                        <Button
+                            android:id="@+id/btnClearHistory"
+                            style="@style/Widget.TestAutoJs.Button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:background="@drawable/button_primary_ripple"
+                            android:text="清空"
+                            android:textSize="12sp"
+                            android:textColor="@color/on_primary"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/surface_variant"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="@color/divider">
+
+                        <TextView
+                            android:id="@+id/tvHistory"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="暂无记录"
+                            android:textSize="12sp"
+                            android:textColor="@color/on_surface_variant"
+                            android:padding="16dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="3dp" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 检测原理说明 -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="检测原理"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="关键维度 (权重高→低)：\n1. deviceId: 注入=-1/0, 真实>0 (最可靠)\n2. pressure: 注入=0.0或1.0(固定), 真实=0.1-0.9\n3. size: 注入=0, 真实=0.05-0.3\n4. touchMajor/Minor: 注入=0, 真实=40-100px\n5. orientation: 注入=0, 真实=有旋转角度\n6. toolType: 注入=FINGER/UNKNOWN, 需配合deviceId\n7. pressDuration: UP事件的 eventTime-downTime\n\ninput motionevent DOWN/UP:\n  deviceId=-1, pressure/size/touch=0, orient=0\n  → 全部注入特征\n\ninput tap:\n  等价于 input swipe x y x y 0\n  同样 deviceId=-1\n\nhumanTap (Morph):\n  分两次调用 input motionevent DOWN + UP\n  中间有 50-150ms delay\n  pressDuration 可绕过时序检测\n  但 deviceId=-1 无法绕过"
+                        android:textSize="12sp"
+                        android:textColor="@color/on_surface_variant"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="4dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
