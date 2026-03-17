@@ -1318,148 +1318,52 @@ class MainActivity : ComponentActivity() {
      */
     private fun checkVpnStatus(): List<ListItem> {
         val vpnItems = ArrayList<ListItem>()
-
         try {
-            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
-            // 获取所有网络连接
-            val networks = connectivityManager.allNetworks
-            var vpnConnected = false
-            val vpnNetworks = ArrayList<String>()
-
-            for (network in networks) {
-                val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
-
-                if (networkCapabilities != null) {
-                    // 检查是否是VPN连接
-                    if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                        vpnConnected = true
-
-                        // 获取VPN的详细信息
-                        val networkInfo = StringBuilder()
-                        networkInfo.append("VPN网络: $network\n")
-
-                        // 检查VPN是否已验证
-                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-                            networkInfo.append("状态: 已验证\n")
-                        } else {
-                            networkInfo.append("状态: 未验证\n")
-                        }
-
-                        // 检查是否有互联网访问
-                        if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                            networkInfo.append("互联网: 可用\n")
-                        } else {
-                            networkInfo.append("互联网: 不可用\n")
-                        }
-
-                        // 检查其他传输类型
-                        val transports = mutableListOf<String>()
-                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                            transports.add("WiFi")
-                        }
-                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                            transports.add("移动数据")
-                        }
-                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
-                            transports.add("以太网")
-                        }
-
-                        if (transports.isNotEmpty()) {
-                            networkInfo.append("底层传输: ${transports.joinToString(", ")}")
-                        }
-
-                        vpnNetworks.add(networkInfo.toString())
-                    }
-                }
+            val results = VpnDetection.detectAll(this)
+            val detected = results.filter { it.detected }
+            vpnItems.add(ListItem(
+                "=== VPN/代理 综合检测 (命中 ${detected.size}/${results.size}) ===",
+                ItemType.VPN_STATUS
+            ))
+            vpnItems.add(ListItem("", ItemType.VPN_STATUS))
+            for (r in results) {
+                val flag = if (r.detected) "[!]" else "[ok]"
+                vpnItems.add(ListItem("$flag ${r.method}", ItemType.VPN_STATUS))
+                vpnItems.add(ListItem("    ${r.detail}", ItemType.VPN_STATUS))
             }
-
-            if (vpnConnected) {
-                vpnItems.add(ListItem("=== VPN状态: 已连接 ===", ItemType.VPN_STATUS))
-                vpnItems.add(ListItem("检测到 ${vpnNetworks.size} 个VPN连接", ItemType.VPN_STATUS))
-                vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行
-
-                for (vpnInfo in vpnNetworks) {
-                    vpnItems.add(ListItem(vpnInfo, ItemType.VPN_STATUS))
-                    vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行分隔
-                }
+            vpnItems.add(ListItem("", ItemType.VPN_STATUS))
+            if (detected.isNotEmpty()) {
+                vpnItems.add(ListItem(">>> 结论: 检测到 VPN/代理 (${detected.size} 项命中)", ItemType.VPN_STATUS))
             } else {
-                vpnItems.add(ListItem("=== VPN状态: 未连接 ===", ItemType.VPN_STATUS))
-                vpnItems.add(ListItem("当前没有检测到VPN连接", ItemType.VPN_STATUS))
+                vpnItems.add(ListItem(">>> 结论: 未检测到 VPN/代理", ItemType.VPN_STATUS))
             }
-
-            // 添加网络统计信息
-            vpnItems.add(ListItem("", ItemType.VPN_STATUS)) // 空行
-            vpnItems.add(ListItem("网络统计:\n总网络数: ${networks.size}\nVPN连接数: ${vpnNetworks.size}", ItemType.VPN_STATUS))
-
         } catch (e: Exception) {
-            vpnItems.add(ListItem("VPN状态检测失败: ${e.message}", ItemType.VPN_STATUS))
+            vpnItems.add(ListItem("VPN综合检测失败: ${e.message}", ItemType.VPN_STATUS))
             Log.e("MainActivity", "检测VPN状态失败", e)
         }
-
         return vpnItems
     }
 
     /**
-     * 刷新VPN状态（异步版本）
+     * 刷新VPN状态（异步版本）- 使用综合检测
      */
     private fun refreshVpnStatusAsync() {
         Thread {
-            val vpnInfo = StringBuilder()
-            
             try {
-                val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val networks = connectivityManager.allNetworks
-                var vpnConnected = false
-                val vpnNetworks = ArrayList<String>()
-
-                for (network in networks) {
-                    val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
-
-                    if (networkCapabilities != null) {
-                        if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                            vpnConnected = true
-                            val networkInfo = StringBuilder()
-                            
-                            if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
-                                networkInfo.append("状态: 已验证\n")
-                            } else {
-                                networkInfo.append("状态: 未验证\n")
-                            }
-
-                            if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                                networkInfo.append("互联网: 可用\n")
-                            } else {
-                                networkInfo.append("互联网: 不可用\n")
-                            }
-
-                            vpnNetworks.add(networkInfo.toString())
-                        }
-                    }
+                val results = VpnDetection.detectAll(this)
+                val formatted = VpnDetection.formatResults(results)
+                runOnUiThread {
+                    tvVpnStatus.text = formatted
                 }
-
-                if (vpnConnected) {
-                    vpnInfo.append("VPN 状态: 已连接\n")
-                    vpnInfo.append("检测到 ${vpnNetworks.size} 个 VPN 连接\n\n")
-                    for ((index, info) in vpnNetworks.withIndex()) {
-                        vpnInfo.append("VPN 连接 ${index + 1}:\n$info\n")
-                    }
-                } else {
-                    vpnInfo.append("VPN 状态: 未连接\n")
-                    vpnInfo.append("当前没有检测到 VPN 连接")
-                }
-
             } catch (e: Exception) {
-                vpnInfo.append("VPN 状态检测失败: ${e.message}")
-                Log.e("MainActivity", "检测VPN状态失败", e)
-            }
-            
-            runOnUiThread {
-                tvVpnStatus.text = vpnInfo.toString().trim()
+                Log.e("MainActivity", "VPN综合检测失败", e)
+                runOnUiThread {
+                    tvVpnStatus.text = "VPN 综合检测失败: ${e.message}"
+                }
             }
         }.start()
     }
-    
+
     /**
      * 刷新VPN状态（同步版本，用于按钮点击）
      */
